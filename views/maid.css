@@ -1,0 +1,19 @@
+.container-fluid {
+  padding: 0em 1em;
+}
+
+.title {
+  margin-top: 0;
+}
+
+.ui.dimmer {
+  background: rgba(0,0,0,0.6)
+}
+
+code.green {
+  color: #5bbd72;
+}
+
+code.red {
+  color: #d95c5c;
+}

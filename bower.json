@@ -1,0 +1,26 @@
+{
+  "name": "AtoMaid",
+  "dependencies": {
+    "angular": "~1.3.12",
+    "angular-route": "~1.3.12",
+    "angular-bootstrap": "~0.12.0"
+  },
+  "version": "0.1.0",
+  "authors": [
+    "Jake Song <jksong3@gmail.com>"
+  ],
+  "description": "Atom Maid",
+  "main": "src/main.coffee",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "resolutions": {
+    "angular": "1.3.12"
+  }
+}

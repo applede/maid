@@ -1,0 +1,42 @@
+doctype html
+html(ng-app="maid")
+  head
+    meta(charset="utf-8")
+    title Maid
+    link(href="../bower/Semantic-UI/dist/semantic.min.css" rel="stylesheet" type="text/css")
+    link(href="../bower/font-awesome/css/font-awesome.css" rel="stylesheet" type="text/css")
+    link(href="maid.css" rel="stylesheet" type="text/css")
+    script
+      | window.$ = window.jQuery = require('../bower/jquery/dist/jquery.min.js');
+    script(src="../bower/Semantic-UI/dist/semantic.min.js")
+    script(src="../bower/angular/angular.js")
+    script(src="../bower/angular-route/angular-route.js")
+
+    script(src="../maid.js")
+  body
+    div.ui.secondary.pointing.menu(ng-controller="MenuCtrl")
+      a.item(href="#/home" ng-class="active_class('home')") Home
+      a.item(href="#/transfers" ng-class="active_class('transfers')") Transfers
+      a.item(href="#/rules" ng-class="active_class('rules')") Rules
+      a.item(href="#/settings" ng-class="active_class('settings')") Settings
+    //- div.ui.page.grid(ng-controller="MenuCtrl")
+    //-   div.row
+    //-     .ui.fixed.menu.inverted
+    //-       a.item(href="#/home" ng-class="active_class('home')") Home
+    //-       a.item(href="#/transfers" ng-class="active_class('transfers')") Transfers
+    //-       a.item(href="#/rules" ng-class="active_class('rules')") Rules
+    //-       a.item(href="#/settings" ng-class="active_class('settings')") Settings
+    //- .row
+    //-   .column.padding-reset
+    .container-fluid
+      div(ng-view)
+    //- div.container
+    //-   div.three.item.tabular.ui.menu
+    //-     a.item.active(data-tab="transfers") Transfers
+    //-     a.item(data-tab="rules") Rules
+    //-     a.item(data-tab="settings") Settings
+    //-   div.main.container
+    //-     div.ui.active.tab(data-tab="transfers")
+    //-       | Transfers
+    //-     div.ui.tab(data-tab="rules")
+    //-     div.ui.tab(data-tab="settings")

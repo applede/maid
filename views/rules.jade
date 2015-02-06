@@ -1,0 +1,67 @@
+h1.title Rules
+table.ui.table
+  thead
+    th Id
+    th Pattern
+    th Ext
+    th Action
+    th As
+    th Name
+    th Rename
+    th
+  tbody
+    tr(ng-repeat="rule in rules")
+      td
+        | {{rule.order}}
+      td
+        code {{rule.pattern}}
+      td
+        code {{rule.ext}}
+      td
+        | {{rule.action}}
+      td
+        | {{rule.kind}}
+      td
+        | {{rule.name}}
+      td
+        | {{rule.rename}}
+      td
+        a.small-padding(ng-click="up_rule(rule)")
+          i.chevron.up.icon
+      
+        a.small-padding(ng-click="down_rule(rule)")
+          i.chevron.down.icon
+      
+        a.small-padding(ng-click="edit_rule(rule)")
+          i.edit.icon
+#rules_edit.ui.fullscreen.modal
+  i.close.icon
+  .header Edit Rule {{rule.id}}
+  .content
+    .ui.form
+      .fields
+        .eight.wide.field
+          label Name Pattern
+          input(type="text" ng-model="entry.rule.pattern")
+        .three.wide.field
+          label Ext Pattern
+          input(type="text" ng-model="entry.rule.ext")
+        .three.wide.field
+          label Action
+          dropdown(ng-model="entry.rule.action" data="actions")
+        .two.wide.field
+          label &nbsp;
+          .ui.primary.submit.button(ng-click="done_rule()") Done
+      .fields(ng-show="show_rule(entry)")
+        .three.wide.field
+          label Kind
+          dropdown(ng-model="entry.rule.kind" data="kinds")
+        .five.wide.field
+          label {{rule.kind}} Name
+          input(type="text" ng-model="entry.rule.name")
+        .eight.wide.field
+          label Rename
+          input(type="text" ng-model="entry.rule.rename")
+      .fields
+        .two.wide.field
+          .ui.red.button(ng-click="delete_rule()") Delete
