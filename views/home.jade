@@ -1,43 +1,36 @@
-h1.title Home
-.ui.primary.button(ng-click="test_run()") Test Run
+h1 Home
 
-table.ui.table(ng-repeat="tran in transfers" ng-show="show_result")
+button.btn.btn-primary(type="button" ng-click="test_run()") Test Run
+
+table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
   thead
     tr
-      th(colspan=4)
-        | {{tran.transfer}}
+      th(colspan=4) {{tran.transfer}}
   tbody
-    tr(ng-repeat-start="entry in tran.files")
-      td(ng-class="result_class(entry)")
-        | {{entry.name}}
-      td(ng-class="result_class(entry)")
-        | {{entry.rule.pattern}}
-      td(ng-class="result_class(entry)")
-        | {{entry.rule.ext}}
-      td(ng-class="result_class(entry)")
+    tr(ng-repeat-start="entry in tran.files" ng-class="result_class(entry)")
+      td {{entry.name}}
+      td {{entry.rule.pattern}}
+      td {{entry.rule.ext}}
+      td
         | {{entry.rule.action}}
         div(style="display: inline-block; float: right;")
           a(ng-click="edit_rule(entry)")
-            i.edit.icon
+            span.glyphicon.glyphicon-edit
     tr(ng-repeat-end ng-show="show_rule(entry)")
       td(colspan=4 ng-class="result_class(entry)")
-        span
-          span.hspace
-            span.ui.label
-              | {{entry.rule.kind}}
-          .ui.compact.basic.button
-            | {{entry.rule.name}}
-          i.fa.fa-chevron-right
-          .ui.compact.basic.button
-            | {{entry.renamed}}
+        span.label.label-default {{kind(entry)}}
+        ol.breadcrumb.inline
+          li {{entry.rule.name}}
+          li {{entry.renamed}}
 
-.ui.negative.message(ng-show="show_error")
+.alert.alert-danger(role="alert" ng-show="show_error")
   | {{error_message}}
 
-.ui.primary.button(ng-show="show_run" ng-click="run()") Run
-table.ui.table
+.btn.btn-primary(ng-show="show_run" ng-click="run()") Run
+p
+table.table
   tr(ng-repeat="entry in running")
-    td {{entry}}
+    td(ng-class="cmd_class(entry)") {{entry}}
 
 #home_edit.ui.fullscreen.modal
   i.close.icon

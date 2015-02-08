@@ -1,0 +1,45 @@
+.modal-header
+  h3.modal-title {{title()}} Rule
+.modal-body
+  form
+    .row
+      .col-md-12
+        code {{entry.name}}
+    .row
+      .col-md-12
+        code {{renamed()}}
+    .row
+      | &nbsp;
+    .row
+      .col-md-8
+        .form-group
+          label Name Pattern
+          input.form-control(type="text" ng-model="entry.rule.pattern")
+      .col-md-2
+        .form-group
+          label Ext Pattern
+          input.form-control(type="text" ng-model="entry.rule.ext")
+      .col-md-2
+        .form-group
+          label &nbsp;
+          select.form-control(ng-model="entry.rule.action" ng-options="a.value as a.label for a in actions")
+    .row(ng-show="show_rule()")
+      .col-md-2
+        label Kind
+        select.form-control(ng-model="entry.rule.kind" ng-options="k.value as k.label for k in kinds")
+      .col-md-4
+        label {{kind()}} Folder
+        input.form-control(type="text" ng-model="entry.rule.name")
+      .col-md-6
+        label Rename
+        input.form-control(type="text" ng-model="entry.rule.rename")
+    .row
+      | &nbsp;
+    .row
+      .col-md-12
+        .alert(role="alert" ng-class="error_class")
+          | {{error_message()}} &nbsp;
+.modal-footer
+  button.btn.btn-danger(ng-click="delete()") Delete
+  button.btn.btn-warning(ng-click="cancel()") Cancel
+  button.btn.btn-primary(ng-click="ok()") Save

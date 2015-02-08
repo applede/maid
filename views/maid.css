@@ -1,5 +1,5 @@
 .container-fluid {
-  padding: 0em 1em;
+  padding: 3em 1em 0em 1em;
 }
 
 .title {
@@ -10,10 +10,49 @@
   background: rgba(0,0,0,0.6)
 }
 
+code {
+  color: black;
+}
+
 code.green {
   color: #5bbd72;
 }
 
 code.red {
   color: #d95c5c;
+}
+
+.nav, .pagination, .carousel, .panel-title a { cursor: pointer; }
+
+.modal.center .modal-dialog {
+    position:fixed;
+    top:40%;
+    left:50%;
+    min-width:320px;
+    max-width:930px;
+    width:90%;
+    -webkit-transform:translateX(-50%) translateY(-50%);
+    transform:translateX(-50%) translateY(-50%);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+}
+
+.modal-backdrop {
+  bottom: 0;
+  position: fixed;
+}
+
+.small-padding {
+  padding: 0em 0.25em;
+}
+
+ol.breadcrumb.inline {
+  display: inline-block;
+  margin-bottom: 0px;
 }

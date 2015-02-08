@@ -20,7 +20,7 @@ app.on 'ready', ->
 
   # and load the index.html of the app.
   mainWindow.loadUrl('file://' + __dirname + '/views/index.html')
-
+  mainWindow.openDevTools()
 
   #/ Emitted when the window is closed.
   mainWindow.on 'closed', ->
