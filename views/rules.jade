@@ -1,5 +1,5 @@
 h1 Rules
-table.table
+table.table.table-hover
   thead
     th Ord
     th Pattern
@@ -10,7 +10,7 @@ table.table
     th Rename
     th
   tbody
-    tr(ng-repeat="rule in rules")
+    tr(ng-repeat="rule in rules track by $index")
       td
         | {{rule.order}}
       td

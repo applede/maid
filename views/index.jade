@@ -10,13 +10,13 @@ html(ng-app="maid")
     .navbar.navbar-default.navbar-fixed-top(ng-controller="MenuCtrl")
       ul.nav.navbar-nav
         li(ng-class="{ active: is_active('/home')}")
-          a(href="#/home") Home
+          a(href="#/home" tabindex=-1) Home
         li(ng-class="{ active: is_active('/transfers')}")
-          a(href="#/transfers") Transfers
+          a(href="#/transfers" tabindex=-1) Transfers
         li(ng-class="{ active: is_active('/rules')}")
-          a(href="#/rules") Rules
+          a(href="#/rules" tabindex=-1) Rules
         li(ng-class="{ active: is_active('/settings')}")
-          a(href="#/settings") Settings
+          a(href="#/settings" tabindex=-1) Settings
 
     .container-fluid
       div(ng-view)

@@ -1,11 +1,11 @@
 h1 Home
 
-button.btn.btn-primary(type="button" ng-click="test_run()") Test Run
+button.btn.btn-primary(type="button" ng-click="test_run()" tabindex=-1) Test Run
 
 table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
   thead
     tr
-      th(colspan=4) {{tran.transfer}}
+      th(colspan=4) {{tran.name}}
   tbody
     tr(ng-repeat-start="entry in tran.files" ng-class="result_class(entry)")
       td {{entry.name}}
@@ -14,13 +14,13 @@ table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
       td
         | {{entry.rule.action}}
         div(style="display: inline-block; float: right;")
-          a(ng-click="edit_rule(entry)")
+          a(ng-click="edit_rule(tran, entry)")
             span.glyphicon.glyphicon-edit
     tr(ng-repeat-end ng-show="show_rule(entry)")
       td(colspan=4 ng-class="result_class(entry)")
         span.label.label-default {{kind(entry)}}
         ol.breadcrumb.inline
-          li {{entry.rule.name}}
+          li {{dst_folder(entry)}}
           li {{entry.renamed}}
 
 .alert.alert-danger(role="alert" ng-show="show_error")
@@ -29,48 +29,9 @@ table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
 .btn.btn-primary(ng-show="show_run" ng-click="run()") Run
 p
 table.table
-  tr(ng-repeat="entry in running")
+  tr(ng-repeat="entry in running track by $index")
     td(ng-class="cmd_class(entry)") {{entry}}
-
-#home_edit.ui.fullscreen.modal
-  i.close.icon
-  .header Edit Rule {{rule.id}}
-  .content
-    .ui.form
-      .fields
-        .sixteen.wide.field
-          label Example
-          code(ng-class="match_class()")
-            | {{entry.name}}
-      .fields
-        .sixteen.wide.field
-          code
-            | {{renamed(entry)}}
-      .fields
-        .sixteen.wide.field
-          | &nbsp;
-      .fields
-        .eight.wide.field
-          label Name Pattern
-          input(type="text" ng-model="entry.rule.pattern")
-        .three.wide.field
-          label Ext Pattern
-          input(type="text" ng-model="entry.rule.ext")
-        .three.wide.field
-          label Action
-          dropdown(ng-model="entry.rule.action" data="actions")
-        .two.wide.field
-          label &nbsp;
-          .ui.primary.submit.button(ng-click="done_rule()") Done
-      .fields(ng-show="show_rule(entry)")
-        .three.wide.field
-          label Kind
-          dropdown(ng-model="entry.rule.kind" data="kinds")
-        .five.wide.field
-          label {{rule.kind}} Name
-          input(type="text" ng-model="entry.rule.name")
-        .eight.wide.field
-          label Rename
-          input(type="text" ng-model="entry.rule.rename")
-      .ui.negative.message(ng-show="show_error")
-        | {{rule_error}}
+p
+.progress(ng-show="show_progress")
+  .progress-bar(role="progressbar" style="width: {{progress}}%")
+    | {{dst_size}}
