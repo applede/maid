@@ -23,14 +23,12 @@ table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
           li {{dst_folder(entry)}}
           li {{entry.renamed}}
 
-.alert.alert-danger(role="alert" ng-show="show_error")
-  | {{error_message}}
-
-.btn.btn-primary(ng-show="show_run" ng-click="run()") Run
+p
+.btn.btn-primary(ng-disabled="disable_run" ng-click="run()") Run
 p
 table.table
   tr(ng-repeat="entry in running track by $index")
-    td(ng-class="cmd_class(entry)") {{entry}}
+    td(ng-class="entry.class") {{entry.str}}
 p
 .progress(ng-show="show_progress")
   .progress-bar(role="progressbar" style="width: {{progress}}%")

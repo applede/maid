@@ -78,8 +78,9 @@ basename = (filename) ->
     compo.join('.')
 
 last_path = (path) ->
-  compo = path.split('/')
-  compo.pop()
+  if path
+    compo = path.split('/')
+    compo.pop()
 
 ext = (filename) ->
   compo = filename.split('.')
@@ -115,7 +116,8 @@ whole_regexp = (str) ->
 
 dst_folder = (entry) ->
   if entry.rule.name && is_regexp(entry.rule.name)
-    entry.name.replace(regexp(entry.rule.pattern), entry.rule.name)
+    # entry.name.replace(regexp(entry.rule.pattern), entry.rule.name)
+    renamed(entry.rule, entry.name, entry.folder, entry.rule.name, true)
   else
     entry.rule.name
 
@@ -174,16 +176,25 @@ kind_display = (value) ->
 
 capitalize = (str) ->
   if str
-    str[0].toUpperCase() + str[1 ..].toLowerCase()
+    if str[0] == '('
+      str[0] + str[1].toUpperCase() + str[2 ..].toLowerCase()
+    else if str == 'II'
+      str
+    else
+      str[0].toUpperCase() + str[1 ..].toLowerCase()
 
 capitalize_each = (str) ->
   if str
     (capitalize(s) for s in str.split(' ')).join(' ')
 
-renamed = (rule, file, folder) ->
+get_int = (str, index) ->
+  orig = index
+  while str[index] >= '0' && str[index] <= '9'
+    index += 1
+  {value:parseInt(str[orig ..]), len:index - orig}
+
+renamed = (rule, file, folder, rename, no_ext) ->
   if rule && rule.pattern && rule.rename && file
-    options = []
-    rename = rule.rename
     if rule.include_folder
       file_name = Path.join(last_path(folder), file)
     else
@@ -206,18 +217,25 @@ renamed = (rule, file, folder) ->
             sub = sub.replace(/\./g, ' ')
           else if modifier == ':_'
             sub = sub.replace(/_/g, ' ')
+          else if modifier == ':-'
+            r = get_int(rename, end + 2)
+            sub = ("0" + (parseInt(sub) - r.value)).slice(-2)
+            end += r.len
+          else if modifier == ':0'
+            sub = ("00" + sub).slice(-2)
           else
             break
           end += 2
         rename = rename.replace(rename[index ... end], sub)
-    basename(file_name).replace(regexp(rule.pattern), rename) + "." + ext(file)
+    basename(file_name).replace(regexp(rule.pattern), rename) +
+      if no_ext then "" else "." + ext(file)
   else
     file
 
 process_file = (file, rules, files, folder) ->
   rule = apply_rules(rules, file, folder)
   if rule
-    files.push({name: file, rule: rule, folder: folder, renamed: renamed(rule, file, folder)})
+    files.push({name: file, rule: rule, folder: folder, renamed: renamed(rule, file, folder, rule.rename)})
     true
   else
     files.push({name: file, rule: {action: "no match"}, folder: folder})
@@ -240,7 +258,15 @@ process_transmission = (rules) ->
           if exists(path)
             if is_dir(path)
               for file in dir_entry(path)
-                if ret = !process_file(file, rules, files, path)
+                sub_path = Path.join(path, file)
+                if is_dir(sub_path)
+                  for sub_file in dir_entry(sub_path)
+                    if ret = !process_file(Path.join(file, sub_file), rules, files, path)
+                      break
+                else
+                  if ret = !process_file(file, rules, files, path)
+                    break
+                if ret
                   break
             else
               ret = !process_file(name, rules, files, location)
@@ -251,25 +277,43 @@ process_transmission = (rules) ->
             return transfers
   transfers
 
-exec_log = (cmd, $scope) ->
-  $scope.running.push cmd
+scroll_to_bottom = ->
+  window.scrollTo(0, document.body.scrollHeight)
+
+logger = []
+
+reset_log = ($scope) ->
+  logger = []
+  $scope.running = logger
+
+log = (str, cls) ->
+  logger.push {class:cls || '', str:str}
+
+exec_log = (cmd) ->
+  log cmd
   exec(cmd)
 
-spawn_log = (cmd, args, $scope) ->
+spawn_log = (cmd, args, cls) ->
   if cmd != "echo"
-    $scope.running.push "#{cmd} #{args.join(' ')}"
+    log "#{cmd} #{args.join(' ')}", cls
   spawn cmd, args
 
-spawn_sync_log = (cmd, args, $scope) ->
-  $scope.running.push "#{cmd} #{args.join(' ')}"
+spawn_sync_log = (cmd, args) ->
+  log "#{cmd} #{args.join(' ')}"
   spawn_sync cmd, args
 
-mkdir_if_not_exist = (path, $scope) ->
+mkdir_if_not_exist = (path) ->
   compo = path.split('/')
   compo.pop()
   path = compo.join('/')
   if !exists(path)
-    spawn_sync_log('mkdir', ['-p', path], $scope)
+    spawn_sync_log('mkdir', ['-p', path])
+
+remove_if_exist = (path) ->
+  if exists(path)
+    spawn_log "rm", ['-rf', path]
+  else
+    log "File not exist #{path}", "warning"
 
 file_size = (path) ->
   fs.statSync(path).size
@@ -288,79 +332,88 @@ copy_if_bigger = (src, dst, $scope, $timeout) ->
   if exists(src)
     src_size = file_size(src)
   else
-    return spawn_log 'echo', ["Not exist #{src}"], $scope
+    log "Not exist #{src}", 'warning'
+    return false
   if exists(dst)
     dst_size = file_size(dst)
     if dst_size >= src_size
-      return spawn_log 'echo', ["Skip dst (#{pretty_size(dst_size)}) >= src (#{pretty_size(src_size)})"], $scope
+      log "Skip dst (#{pretty_size(dst_size)}) >= src (#{pretty_size(src_size)}) #{src} #{dst}", 'warning'
+      return false
     else
-      $scope.running.push "overwrite: dst (#{pretty_size(dst_size)}) < src (#{pretty_size(src_size)})"
+      log "Overwrite dst (#{pretty_size(dst_size)}) < src (#{pretty_size(src_size)})", 'warning'
   else
-    mkdir_if_not_exist(dst, $scope)
+    mkdir_if_not_exist(dst)
+  $scope.progress = 0
+  $scope.dst_size = pretty_size(0)
   $timeout ->
-    $scope.watch = fs.watch dst, (event, filename) ->
-      if event == 'change'
-        dst_size = file_size(dst)
-        $scope.progress = ((dst_size / src_size) * 100).toFixed(1)
-        $scope.dst_size = pretty_size(dst_size)
-        if dst_size == src_size
-          $scope.watch.close()
-        $scope.$apply()
+    $scope.$apply()
+    scroll_to_bottom()
+    if exists(dst)
+      $scope.watch = fs.watch dst, (event, filename) ->
+        if event == 'change'
+          dst_size = file_size(dst)
+          $scope.progress = ((dst_size / src_size) * 100).toFixed(1)
+          old_size = $scope.dst_size
+          $scope.dst_size = pretty_size(dst_size)
+          if $scope.dst_size != old_size
+            $scope.$apply()
   , 100
-  spawn_log 'cp', [src, dst], $scope
+  spawn_log 'cp', [src, dst]
 
-process_transfers = (transfers, $scope, $timeout, nth) ->
-  i = 0
-  for transfer in transfers
-    if i == nth
-      $scope.running.push "Processing #{transfer.name}"
-    for file in transfer.files
-      if file.rule.action == 'copy'
-        if i == nth
+process_transfers = (transfers, $scope, $timeout) ->
+  while transfer = transfers[0]
+    if !transfer.logged
+      log "Processing #{transfer.name}", "info"
+      transfer.logged = true
+    while file = transfer.files.shift()
+      switch file.rule.action
+        when 'copy'
           src = Path.join(file.folder, file.name)
           dst = Path.join(folder_for_rule(file.rule), dst_folder(file), file.renamed)
           cmd = copy_if_bigger(src, dst, $scope, $timeout)
+          if cmd
+            cmd.on 'close', (code) ->
+              if $scope.watch
+                $scope.watch.close()
+              if code == 0
+                process_transfers transfers, $scope, $timeout
+            cmd.stdout.on 'data', (data) ->
+              log data.toString(), 'warning'
+            cmd.stderr.on 'data', (data) ->
+              log data.toString(), 'warning'
+            return
+        when 'no match'
+          $scope.running.pop()
+          log 'Done', 'success'
+          $scope.show_progress = false
           $scope.$apply()
-          cmd.on 'close', (code) ->
-            if code == 0
-              process_transfers transfers, $scope, $timeout, nth + 1
-          cmd.stdout.on 'data', (data) ->
-            $scope.running.push data.toString()
-          cmd.stderr.on 'data', (data) ->
-            $scope.running.push data.toString()
+          scroll_to_bottom()
           return
-        i += 1
-      else if file.rule.action == 'no match'
-        $scope.running.pop()
-        $scope.running.push 'Done'
-        $scope.show_progress = false
-        $scope.$apply()
-        return
-    # if we're here, it means we processed all files in the transfer
-    # but this loop is called many times, we execute it once with condition
-    if i == nth
-      exec_log "/usr/local/bin/transmission-remote -t #{transfer.tid} --remove", $scope
-      if transfer.files[0].rule.action != 'remove'
-        spawn_log "rm", ['-rf', transfer.path], $scope
+    exec_log "/usr/local/bin/transmission-remote -t #{transfer.tid} --remove", $scope
+    remove_if_exist(transfer.path)
+    transfers.shift()
 
 maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope, $timeout, $modal) ->
   $scope.test_run = ->
     load_rules $scope, (rules) ->
       $scope.transfers = process_transmission rules
       $scope.show_result = true
-      $scope.running = []
+      reset_log($scope)
       if $scope.transfers.length > 1
         # one successful entry + one failed entry, so at least 2
-        $scope.show_run = true
+        $scope.disable_run = false
       else
-        $scope.show_run = false
+        $scope.disable_run = true
       $scope.$apply()
   $scope.run = ->
-    $scope.running = []
+    reset_log($scope)
     $scope.show_progress = true
-    $scope.show_run = false
+    $scope.disable_run = true
     $timeout ->
-      process_transfers($scope.transfers, $scope, $timeout, 0)
+      process_transfers(angular.copy($scope.transfers), $scope, $timeout)
+      $scope.$apply()
+      # scroll_to_bottom()
+
   $scope.result_class = (file) ->
     if file.rule
       switch file.rule.action
@@ -372,7 +425,6 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
       "danger"
   $scope.edit_rule = (transfer, entry) ->
     # $scope.entry = entry
-    # $scope.show_error = false
     # $scope.dialog.modal('show')
     $scope.entry = angular.copy(entry)
     if $scope.entry.rule.action == 'no match'
@@ -400,13 +452,6 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
       false
   $scope.kind = (entry) ->
     kind_display(entry.rule.kind)
-  $scope.cmd_class = (cmd) ->
-    if cmd.match(/^Processing/)
-      "info"
-    else if cmd.match(/^Done/)
-      "success"
-    else if cmd.match(/^Skip/)
-      "warning"
 
   $scope.dst_folder = (entry) ->
     dst_folder(entry)
@@ -415,8 +460,7 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
     $scope.show_result = false
     $scope.transfers = []
     $scope.running = []
-    $scope.show_run = false
-    $scope.show_error = false
+    $scope.disable_run = true
   $scope.actions = maid_actions
   $scope.kinds = maid_kinds
   reset()
@@ -476,10 +520,13 @@ maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $m
   $scope.ok = ->
     $modalInstance.close($scope.entry.rule)
 
-  $scope.copy = ->
-    $scope.entry.rule = angular.copy($scope.entry.rule)
-    $scope.entry.rule._id = null
-    $scope.entry.rule._rev = null
+  $scope.insert = ->
+    # add original rule as new rule
+    $scope.original_rule._id = null
+    $scope.original_rule._rev = null
+    add_or_update_rule($scope.original_rule)
+
+    $modalInstance.close($scope.entry.rule)
 
   $scope.cancel = ->
     $modalInstance.dismiss('cancel')
@@ -491,7 +538,7 @@ maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $m
   $scope.show_rule = ->
     $scope.entry.rule.action == "copy"
   $scope.renamed = ->
-    renamed($scope.entry.rule, $scope.entry.name, $scope.entry.folder)
+    renamed($scope.entry.rule, $scope.entry.name, $scope.entry.folder, $scope.entry.rule.rename)
 
   $scope.kind = ->
     kind_display($scope.entry.rule.kind)
@@ -510,11 +557,12 @@ maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $m
         $scope.kind_error = 'has-error'
         'When copy, kind should be set.'
       else if $scope.entry.rule.name
-        if contains($scope.entry.rule.name, ':')
-          "Folder name can not contain ':'."
+        dst_f = dst_folder($scope.entry)
+        if contains(dst_f, ':')
+          "Folder name can not contain ':'. #{dst_f}"
         else
           folder = folder_for_rule($scope.entry.rule)
-          if !exists(Path.join(folder, dst_folder($scope.entry)))
+          if !exists(Path.join(folder, dst_f))
             $scope.folder_error = "has-warning"
             "Folder '#{dst_folder($scope.entry)}' does not exist. It will be created."
           else
@@ -536,4 +584,5 @@ maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $m
 
   $scope.actions = maid_actions
   $scope.kinds = maid_kinds
+  $scope.original_rule = angular.copy($scope.entry.rule)
 ]
