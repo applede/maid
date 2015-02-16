@@ -22,9 +22,11 @@ table.table.table-hover(ng-repeat="tran in transfers" ng-show="show_result")
         ol.breadcrumb.inline
           li {{dst_folder(entry)}}
           li {{entry.renamed}}
-
 p
-.btn.btn-primary(ng-disabled="disable_run" ng-click="run()") Run
+.alert.alert-warning(ng-show="show_message")
+  | Nothing finished
+p
+.btn.btn-primary(ng-show="show_run" ng-click="run()") Run
 p
 table.table
   tr(ng-repeat="entry in running track by $index")
@@ -33,3 +35,5 @@ p
 .progress(ng-show="show_progress")
   .progress-bar(role="progressbar" style="width: {{progress}}%")
     | {{dst_size}}
+
+button.btn.btn-primary(type="button" ng-click="test_run()" ng-show="show_test" tabindex=-1) Test Run Again

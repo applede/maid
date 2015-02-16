@@ -386,29 +386,35 @@ process_transfers = (transfers, $scope, $timeout) ->
           $scope.running.pop()
           log 'Done', 'success'
           $scope.show_progress = false
+          $scope.show_test = true
           $scope.$apply()
           scroll_to_bottom()
           return
     exec_log "/usr/local/bin/transmission-remote -t #{transfer.tid} --remove", $scope
     remove_if_exist(transfer.path)
     transfers.shift()
+  $scope.show_progress = false
+  $scope.$apply()
+  scroll_to_bottom()
 
 maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope, $timeout, $modal) ->
   $scope.test_run = ->
+    reset()
     load_rules $scope, (rules) ->
       $scope.transfers = process_transmission rules
-      $scope.show_result = true
-      reset_log($scope)
-      if $scope.transfers.length > 1
-        # one successful entry + one failed entry, so at least 2
-        $scope.disable_run = false
+      if $scope.transfers.length > 0
+        $scope.show_result = true
+        $scope.show_test = false
+        reset_log($scope)
+        if $scope.transfers.length >= 1
+          $scope.show_run = true
       else
-        $scope.disable_run = true
+        $scope.show_message=true
       $scope.$apply()
   $scope.run = ->
     reset_log($scope)
     $scope.show_progress = true
-    $scope.disable_run = true
+    $scope.show_run = false
     $timeout ->
       process_transfers(angular.copy($scope.transfers), $scope, $timeout)
       $scope.$apply()
@@ -460,7 +466,10 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
     $scope.show_result = false
     $scope.transfers = []
     $scope.running = []
-    $scope.disable_run = true
+    $scope.show_run = false
+    $scope.show_test = false
+    $scope.show_message = false
+
   $scope.actions = maid_actions
   $scope.kinds = maid_kinds
   reset()
