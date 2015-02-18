@@ -39,10 +39,25 @@ spawn_sync = require('child_process').spawnSync
 Path = require 'path'
 
 db = new pouchdb('rules', {adapter: 'idb'})
+settings_db = new pouchdb('settings', {adapter: 'idb'})
 
-tvshow_folder = '/Volumes/Raid3/thetvdb'
-porn_folder = '/Users/apple/mount/Raid2/porn'
-movie_folder = '/Users/apple/mount/Movie2'
+settings = {}
+
+load_settings = (callback) ->
+  settings_db.allDocs {include_docs: true}, (err, resp) ->
+    if resp.rows[0]
+      settings = resp.rows[0].doc
+    else
+      home = process.env['HOME']
+      settings =
+        tvshow_folder: "#{home}/Downloads/tvshows"
+        porn_folder: "#{home}/Downloads/porns"
+        movie_folder: "#{home}/Downloads/movies"
+    callback(settings)
+
+load_settings(->
+)
+
 max_order = 1
 
 next_order = ->
@@ -92,11 +107,11 @@ ext = (filename) ->
 folder_for_rule = (rule) ->
   switch rule.kind
     when 'movie'
-      movie_folder
+      settings.movie_folder
     when 'tvshow'
-      tvshow_folder
+      settings.tvshow_folder
     when 'porn'
-      porn_folder
+      settings.porn_folder
     else
       throw "unknown kinds #{rule.kind}"
 
@@ -518,6 +533,17 @@ maidControllers.controller 'RulesCtrl', ['$scope', '$modal', ($scope, $modal) ->
 ]
 
 maidControllers.controller 'SettingsCtrl', ['$scope', '$http', ($scope, $http) ->
+  load_settings (settings) ->
+    $scope.settings = settings
+    $scope.$apply()
+
+  $scope.save = ->
+    if settings._id
+      settings_db.put settings, (err, resp) ->
+        ;
+    else
+      settings_db.post settings, (err, resp) ->
+        ;
 ]
 
 maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $modalInstance) ->
