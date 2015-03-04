@@ -4,6 +4,6 @@
   "description": "Maid for media management",
   "dependencies": {
     "pouchdb": "~3.2.1",
-    "exec-sync": "~0.1.6"
+    "unorm": "~1.3.3"
   }
 }

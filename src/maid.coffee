@@ -12,6 +12,9 @@ maidApp.config ['$routeProvider',
     .when '/rules',
       templateUrl: 'rules.html',
       controller: 'RulesCtrl'
+    .when '/images',
+      templateUrl: 'images.html',
+      controller: 'ImagesCtrl'
     .when '/settings',
       templateUrl: 'settings.html',
       controller: 'SettingsCtrl'
@@ -19,24 +22,25 @@ maidApp.config ['$routeProvider',
       redirectTo: '/home'
 ]
 
-maidControllers = angular.module('maidControllers', []);
+maidControllers = angular.module('maidControllers', [])
 
 maidControllers.controller 'MenuCtrl', ['$scope', '$location', ($scope, $location) ->
   $scope.is_active = (loc) ->
     loc == $location.path()
 ]
 
+last_elem = (array) ->
+  array[array.length - 1]
+
 remote = require 'remote'
 ipc = require 'ipc'
 exec = require('child_process').exec
-# myexec = (cmd, callback) ->
-#   exec cmd, {env: {PATH: "/usr/local/bin:/usr/bin:/bin"}}, callback
 fs = require 'fs'
 pouchdb = require 'pouchdb'
-# shell = remote.require 'shelljs'
 spawn = require('child_process').spawn
 spawn_sync = require('child_process').spawnSync
 Path = require 'path'
+unorm = require 'unorm'
 
 db = new pouchdb('rules', {adapter: 'idb'})
 settings_db = new pouchdb('settings', {adapter: 'idb'})
@@ -80,6 +84,9 @@ exists = (path) ->
 
 is_dir = (path) ->
   fs.statSync(path).isDirectory()
+
+is_symlink = (path) ->
+  fs.lstatSync(path).isSymbolicLink()
 
 dir_entry = (path) ->
   fs.readdirSync(path)
@@ -131,16 +138,18 @@ whole_regexp = (str) ->
 
 dst_folder = (entry) ->
   if entry.rule.name && is_regexp(entry.rule.name)
-    # entry.name.replace(regexp(entry.rule.pattern), entry.rule.name)
     renamed(entry.rule, entry.name, entry.folder, entry.rule.name, true)
   else
     entry.rule.name
+
+normalize = (str) ->
+  unorm.nfd(str)
 
 match_rule = (rule, file, folder) ->
   if rule && rule.include_folder
     file = Path.join(last_path(folder), file)
   rule && ext(file).match(whole_regexp(rule.ext)) &&
-  rule.pattern && basename(file).match(regexp(rule.pattern))
+  rule.pattern && basename(normalize(file)).match(regexp(normalize(rule.pattern)))
 
 apply_rules = (rules, file, folder) ->
   for rule in rules
@@ -214,7 +223,7 @@ renamed = (rule, file, folder, rename, no_ext) ->
       file_name = Path.join(last_path(folder), file)
     else
       file_name = file
-    m = basename(file_name).match(regexp(rule.pattern))
+    m = basename(normalize(file_name)).match(regexp(normalize(rule.pattern)))
     if m
       for i in [1 .. 9]
         index = rename.indexOf("$#{i}")
@@ -242,19 +251,39 @@ renamed = (rule, file, folder, rename, no_ext) ->
             break
           end += 2
         rename = rename.replace(rename[index ... end], sub)
-    basename(file_name).replace(regexp(rule.pattern), rename) +
+    basename(normalize(file_name)).replace(regexp(normalize(rule.pattern)), rename) +
       if no_ext then "" else "." + ext(file)
   else
     file
 
-process_file = (file, rules, files, folder) ->
+matching_rule = (file, rules, files, folder) ->
   rule = apply_rules(rules, file, folder)
   if rule
     files.push({name: file, rule: rule, folder: folder, renamed: renamed(rule, file, folder, rule.rename)})
-    true
+    return true
   else
     files.push({name: file, rule: {action: "no match"}, folder: folder})
-    false
+    return false
+
+process_files = (name, location, rules) ->
+  path = Path.join(location, name)
+  if exists(path)
+    files = []
+    if is_dir(path)
+      for file in dir_entry(path)
+        sub_path = Path.join(path, file)
+        if is_dir(sub_path)
+          for sub_file in dir_entry(sub_path)
+            if !matching_rule(Path.join(file, sub_file), rules, files, path)
+              return files
+        else
+          if !matching_rule(file, rules, files, path)
+            return files
+    else
+      matching_rule(name, rules, files, location)
+  else
+    files = [{name: 'Not exists', rule: {action: 'remove'}}]
+  return files
 
 process_transmission = (rules) ->
   lines = spawn_sync('/usr/local/bin/transmission-remote', ['--list']).stdout.toString()
@@ -269,27 +298,35 @@ process_transmission = (rules) ->
         if info[0 .. 11] == "  Location: "
           location = info[12 .. -1]
           path = Path.join(location, name)
-          files = []
-          if exists(path)
-            if is_dir(path)
-              for file in dir_entry(path)
-                sub_path = Path.join(path, file)
-                if is_dir(sub_path)
-                  for sub_file in dir_entry(sub_path)
-                    if ret = !process_file(Path.join(file, sub_file), rules, files, path)
-                      break
-                else
-                  if ret = !process_file(file, rules, files, path)
-                    break
-                if ret
-                  break
-            else
-              ret = !process_file(name, rules, files, location)
-            transfers.push {tid: tid, name: name, files: files, path: path, status: status}
-          else
-            transfers.push {tid: tid, name: name, files: [{name: 'Not exists', rule: {action: 'remove'}}], path: path, status: status}
-          if ret
+          # files = []
+          # if exists(path)
+          files = process_files(name, location, rules)
+          transfers.push { tid: tid, name: name, files: files, path: path, status: status }
+          # if is_dir(path)
+          #   for file in dir_entry(path)
+          #     sub_path = Path.join(path, file)
+          #     if is_dir(sub_path)
+          #       for sub_file in dir_entry(sub_path)
+          #         last_action = process_file(Path.join(file, sub_file), rules, files, path)
+          #         if last_action == 'no match'
+          #           break
+          #     else
+          #       last_action = process_file(file, rules, files, path)
+          #     if last_action == 'no match'
+          #       break
+          # else
+          #   last_action = process_file(name, rules, files, location)
+          # transfers.push {tid: tid, name: name, files: files, path: path, status: status}
+          # else
+          #   transfers.push {
+          #     tid: tid,
+          #     name: name,
+          #     files: [{name: 'Not exists', rule: {action: 'remove'}}],
+          #     path: path,
+          #     status: status}
+          if last_elem(last_elem(transfers).files).rule.action == 'no match'
             return transfers
+          break
   transfers
 
 scroll_to_bottom = ->
@@ -343,7 +380,7 @@ pretty_size = (x) ->
   else
     x.toString()
 
-copy_if_bigger = (src, dst, $scope, $timeout) ->
+copy_if_bigger = (src, dst, $scope, $timeout, callback) ->
   if exists(src)
     src_size = file_size(src)
   else
@@ -373,7 +410,24 @@ copy_if_bigger = (src, dst, $scope, $timeout) ->
           if $scope.dst_size != old_size
             $scope.$apply()
   , 100
-  spawn_log 'cp', [src, dst]
+  cmd = spawn_log 'cp', [src, dst]
+  if cmd
+    cmd.on 'close', callback
+    cmd.stdout.on 'data', (data) ->
+      log data.toString()
+    cmd.stderr.on 'data', (data) ->
+      log data.toString(), 'warning'
+
+unrar = (src, dst, $scope, callback) ->
+  cmd = spawn_log '/usr/local/bin/unrar', ['e', '-o+', src, dst]
+  if cmd
+    cmd.on 'close', callback
+    cmd.stdout.on 'data', (data) ->
+      log data.toString()
+      $scope.$apply()
+      scroll_to_bottom()
+    cmd.stderr.on 'data', (data) ->
+      log data.toString(), 'warning'
 
 process_transfers = (transfers, $scope, $timeout) ->
   while transfer = transfers[0]
@@ -385,18 +439,20 @@ process_transfers = (transfers, $scope, $timeout) ->
         when 'copy'
           src = Path.join(file.folder, file.name)
           dst = Path.join(folder_for_rule(file.rule), dst_folder(file), file.renamed)
-          cmd = copy_if_bigger(src, dst, $scope, $timeout)
+          cmd = copy_if_bigger src, dst, $scope, $timeout, (code) ->
+            if $scope.watch
+              $scope.watch.close()
+            if code == 0
+              process_transfers transfers, $scope, $timeout
           if cmd
-            cmd.on 'close', (code) ->
-              if $scope.watch
-                $scope.watch.close()
-              if code == 0
-                process_transfers transfers, $scope, $timeout
-            cmd.stdout.on 'data', (data) ->
-              log data.toString(), 'warning'
-            cmd.stderr.on 'data', (data) ->
-              log data.toString(), 'warning'
             return
+        when 'unrar'
+          src = Path.join(file.folder, file.name)
+          transfer.unrar = src
+          unrar src, file.folder, $scope, (code) ->
+            if code == 0
+              process_transfers transfers, $scope, $timeout
+          return
         when 'no match'
           $scope.running.pop()
           log 'Done', 'success'
@@ -405,10 +461,14 @@ process_transfers = (transfers, $scope, $timeout) ->
           $scope.$apply()
           scroll_to_bottom()
           return
-    exec_log "/usr/local/bin/transmission-remote -t #{transfer.tid} --remove", $scope
-    remove_if_exist(transfer.path)
+    if transfer.unrar
+      remove_if_exist(transfer.unrar)
+    else
+      exec_log "/usr/local/bin/transmission-remote -t #{transfer.tid} --remove", $scope
+      remove_if_exist(transfer.path)
     transfers.shift()
   $scope.show_progress = false
+  $scope.show_test = true
   $scope.$apply()
   scroll_to_bottom()
 
@@ -442,7 +502,7 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
         when "ignore" then ""
         when "unrar" then "success"
         else "danger"
-    else  
+    else
       "danger"
   $scope.edit_rule = (transfer, entry) ->
     # $scope.entry = entry
@@ -490,9 +550,6 @@ maidControllers.controller 'HomeCtrl', ['$scope', '$timeout', '$modal', ($scope,
   reset()
 ]
 
-maidControllers.controller 'TransferCtrl', ['$scope', '$http', ($scope, $http) ->
-]
-
 maidControllers.controller 'RulesCtrl', ['$scope', '$modal', ($scope, $modal) ->
   refresh_rules = ->
     load_rules $scope, (rules) ->
@@ -532,7 +589,34 @@ maidControllers.controller 'RulesCtrl', ['$scope', '$modal', ($scope, $modal) ->
   refresh_rules()
 ]
 
-maidControllers.controller 'SettingsCtrl', ['$scope', '$http', ($scope, $http) ->
+is_image = (file) ->
+  ext(file).match(/jpg/)
+
+process_image = (path) ->
+
+maidControllers.controller 'ImagesCtrl', ['$scope', ($scope) ->
+  $scope.scan_folder = "/"
+  $scope.scan = ->
+    $scope.process_image_folder($scope.scan_folder)
+  $scope.stop = ->
+    $scope.stopped = true
+  $scope.process_image_folder = (folder) ->
+    for entry in dir_entry(folder)
+      if $scope.stopped
+        break
+      if entry[0] != '.'
+        path = Path.join(folder, entry)
+        if exists(path)
+          if is_dir(path)
+            $scope.process_image_folder(path)
+          else if is_image(entry)
+            process_image(path)
+          else
+            console.log ext(entry)
+
+]
+
+maidControllers.controller 'SettingsCtrl', ['$scope', ($scope) ->
   load_settings (settings) ->
     $scope.settings = settings
     $scope.$apply()
@@ -540,10 +624,8 @@ maidControllers.controller 'SettingsCtrl', ['$scope', '$http', ($scope, $http) -
   $scope.save = ->
     if settings._id
       settings_db.put settings, (err, resp) ->
-        ;
     else
       settings_db.post settings, (err, resp) ->
-        ;
 ]
 
 maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $modalInstance) ->
