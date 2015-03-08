@@ -4,7 +4,7 @@ slim = require 'gulp-slim'
 jade = require 'gulp-jade'
 plumber = require 'gulp-plumber'
 shell = require 'gulp-shell'
-# atomshell = require('gulp-atom-shell')
+atomshell = require('gulp-atom-shell')
 # downloadAtomShell = require('gulp-download-atom-shell')
 COFFEE = 'src/*.coffee'
 JSON = 'src/package.json'
@@ -49,6 +49,17 @@ gulp.task 'css', ->
 gulp.task 'html', ->
   gulp.src(HTML)
       .pipe(gulp.dest(DEST_VIEWS))
+
+gulp.task 'atomshell', ->
+  gulp.src('')
+    .pipe(atomshell({
+      version: '0.21.3',
+      productName: 'Maid',
+      productVersion: '0.0.2',
+      platform: 'darwin',
+      darwinIcon: 'resource/maid.icns'
+    }))
+    .pipe(gulp.dest('build'))
 
 gulp.task 'build', ['coffee', 'jade', 'css', 'json', 'icon'], ->
   gulp.src("")

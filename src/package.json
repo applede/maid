@@ -4,6 +4,7 @@
   "description": "Maid for media management",
   "dependencies": {
     "pouchdb": "~3.2.1",
-    "unorm": "~1.3.3"
+    "unorm": "~1.3.3",
+    "selenium-webdriver": "~2.45.1"
   }
 }
