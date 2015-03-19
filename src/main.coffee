@@ -11,13 +11,15 @@ mainWindow = null
 
 # Quit when all windows are closed.
 app.on 'window-all-closed', ->
-  app.quit();
+  app.quit()
 
 # This method will be called when atom-shell has done everything
 # initialization and ready for creating browser windows.
 app.on 'ready', ->
+  process.env.PATH = "/usr/local/bin:/usr/bin:/bin"
   # Create the browser window.
   mainWindow = new BrowserWindow({width: 1024, height: 1400})
+  # app.mainWindow = mainWindow
 
   # and load the index.html of the app.
   mainWindow.loadUrl('file://' + __dirname + '/views/index.html')

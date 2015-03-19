@@ -15,13 +15,16 @@ html(ng-app="maid")
           a(href="#/rules" tabindex=-1) Rules
         li(ng-class="{ active: is_active('/images')}")
           a(href="#/images" tabindex=-1) Images
+        li(ng-class="{ active: is_active('/scraping')}")
+          a(href="#/scraping" tabindex=-1) Scraping
         li(ng-class="{ active: is_active('/settings')}")
           a(href="#/settings" tabindex=-1) Settings
 
     .container-fluid
       div(ng-view)
 
-    script(src="../bower/angular/angular.min.js")
+    script(src="../bower/angular/angular.js")
     script(src="../bower/angular-route/angular-route.js")
     script(src="../bower/angular-bootstrap/ui-bootstrap-tpls.min.js")
     script(src="../maid.js")
+    script(src="../scraping.js")

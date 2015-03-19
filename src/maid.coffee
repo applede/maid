@@ -1,4 +1,4 @@
-maidApp = angular.module('maid', ['ngRoute', 'maidControllers', 'ui.bootstrap']);
+maidApp = angular.module('maid', ['ngRoute', 'maidControllers', 'scraper', 'ui.bootstrap']);
 
 maidApp.config ['$routeProvider',
   ($routeProvider) ->
@@ -15,6 +15,9 @@ maidApp.config ['$routeProvider',
     .when '/images',
       templateUrl: 'images.html',
       controller: 'ImagesCtrl'
+    .when '/scraping',
+      templateUrl: 'scraping.html',
+      controller: 'ScrapingCtrl'
     .when '/settings',
       templateUrl: 'settings.html',
       controller: 'SettingsCtrl'
@@ -703,17 +706,3 @@ maidControllers.controller 'ModalCtrl', ['$scope', '$modalInstance', ($scope, $m
   $scope.kinds = maid_kinds
   $scope.original_rule = angular.copy($scope.entry.rule)
 ]
-
-webdriver = remote.require 'selenium-webdriver'
-
-driver = new webdriver.Builder().
-  usingServer('http://localhost:9515').
-  withCapabilities(
-    chromeOptions:
-      binary: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-  ).
-  forBrowser('atom-shell').
-  build()
-
-driver.get('http://www.google.com')
-driver.quit()

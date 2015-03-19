@@ -5,6 +5,7 @@
   "dependencies": {
     "pouchdb": "~3.2.1",
     "unorm": "~1.3.3",
-    "selenium-webdriver": "~2.45.1"
+    "webdriverio": "*",
+    "webdriver-sync": "*"
   }
 }
