@@ -61,3 +61,50 @@ app.on 'ready', ->
   ]
   menu = Menu.buildFromTemplate(menu_tmpl)
   Menu.setApplicationMenu(menu)
+
+ipc = require 'ipc'
+webdriver = require('selenium-webdriver')
+By = webdriver.By
+till = webdriver.until
+chrome = require('selenium-webdriver/chrome')
+driver = null
+
+log = (str) ->
+  mainWindow.webContents.send('log', str)
+
+click = (elem_path, i, cb) ->
+  driver.wait(till.elementLocated(By.xpath(elem_path)), 5000)
+  driver.findElements(By.xpath(elem_path)).then (elems) ->
+    if elems.length > i
+      elems[i].click().then(cb)
+    else
+      log "#{elems.length} #{i}"
+
+find_text = (elem_path) ->
+  driver.wait(till.elementLocated(By.xpath(elem_path)), 5000, "timeout").then ->
+    elem = driver.findElement(By.xpath(elem_path))
+    elem.getText()
+
+scrape = (i) ->
+  click "//div[@class='media-poster']", i, ->
+    find_text("//p[@class='item-summary metadata-summary']").then (text) ->
+      driver.navigate().back().then ->
+        driver.sleep(1000).then ->
+          scrape(i + 1)
+    , (r) ->
+      find_text("//h1[@class='item-title']").then (text) ->
+        log 'here '+text
+
+
+ipc.on 'scrape', (event, arg) ->
+  options = new chrome.Options()
+      .addArguments("user-data-dir=/Users/apple/hobby/atomaid/Chrome")
+
+  driver = new webdriver.Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .build();
+
+  driver.get('http://127.0.0.1:32400/web/index.html')
+  click "//span[text() = 'porn']", 0, ->
+    scrape(0)

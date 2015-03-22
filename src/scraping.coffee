@@ -2,9 +2,8 @@ scraper = angular.module('scraper', [])
 
 remote = require 'remote'
 # webdriverio = remote.require 'webdriverio'
-# ipc = require 'ipc'
+ipc = require 'ipc'
 webdriver = remote.require('selenium-webdriver')
-chrome = remote.require('selenium-webdriver/chrome')
 # SeleniumServer = remote.require('selenium-webdriver/remote').SeleniumServer
 xpath = webdriver.By.xpath
 timeout = null
@@ -29,11 +28,6 @@ find_element = (elem_path, count, f) ->
       f(elements[0])
     else
       f()
-
-click = (elem_path, index, f) ->
-  find_elements elem_path, 1000, (elements) ->
-    if index < elements.length
-      elements[index].click().then f
 
 send_enter = (elem_path, str, f) ->
   find_element elem_path, 1000, (elem) ->
@@ -71,6 +65,7 @@ scrape = (movie_num) ->
   console.log "scrape #{movie_num}"
   click "//div[@class='media-poster']", movie_num, ->
     find_text "//p[@class='item-summary metadata-summary']", (text) ->
+      console.log "summary " + text
       if text && text.length > 0
         driver.navigate().back()
         scrape(movie_num + 1)
@@ -79,21 +74,15 @@ scrape = (movie_num) ->
           if contains(text, 'andrew') && contains(text, 'blake')
             search to_search(text) + ' site:store.andrewblake.com'
 
+ipc.on('log', (str) ->
+  console.log str
+)
+
 scraper.controller 'ScrapingCtrl', ['$scope', '$timeout', ($scope, $timeout) ->
   timeout = $timeout
 
-  options = new chrome.Options()
-      .addArguments("user-data-dir=/Users/apple/hobby/atomaid/Chrome")
-
-  driver = new webdriver.Builder()
-      .forBrowser('chrome')
-      .setChromeOptions(options)
-      .build();
-
   $scope.scraping = ->
-    driver.get('http://127.0.0.1:32400/web/index.html')
-    click "//span[text() = 'porn']", 0, ->
-      scrape(0)
+    ipc.send('scrape', 'start')
 
     # driver.quit();
 
@@ -103,4 +92,5 @@ scraper.controller 'ScrapingCtrl', ['$scope', '$timeout', ($scope, $timeout) ->
   # $timeout ->
   #   $scope.scraping()
   # , 1000
+  $scope.scraping()
 ]
