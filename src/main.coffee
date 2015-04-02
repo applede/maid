@@ -88,6 +88,10 @@ click_xpath = (elem_path, i) ->
 click = (selector, i) ->
   click_loc(By.css(selector), i)
 
+click_child = (elem, selector) ->
+  elem.findElement(By.css(selector)).then (child) ->
+    child.click()
+
 find_text = (selector) ->
   driver.wait(till.elementLocated(By.css(selector)), 5000, "timeout").then ->
     elem = driver.findElement(By.css(selector))
@@ -98,6 +102,20 @@ find_text_xpath = (path) ->
     elem = driver.findElement(By.xpath(path))
     elem.getText()
 
+find_child_text = (elem, selector) ->
+  elem.findElement(By.css(selector)).then (child) ->
+    child.getText()
+
+find_elements = (selector) ->
+  driver.wait(till.elementLocated(By.css(selector)), 5000, "find_elements timeout").then ->
+    driver.findElements(By.css(selector))
+
+find_elem = (selector, i) ->
+  driver.wait(till.elementLocated(By.css(selector)), 5000, "find_elem timeout").then ->
+    driver.findElements(By.css(selector)).then (elems) ->
+      driver.executeScript("arguments[0].scrollIntoView(true);", elems[i])
+      elems[i]
+
 movie =
   summary: ""
   image_url: ""
@@ -106,16 +124,23 @@ movie =
   title: ""
   year: ""
 
-to_full_title = (text) ->
+to_full_title = (text, studio) ->
   text = text.replace(/[\._]/g, ' ')
   m = text.match(/\b(\d\d\d\d)\b/)
   if m
     movie.year = m[0]
-  text.replace(/dvdrip|\d\d\d\d/gi, '')
-      .replace(/[ ]+$/, '')
+  r = text.replace(/dvdrip|\d\d\d\d/gi, '')
+          .replace(/[ ]+$/, '')
+  if m = r.match(RegExp("^(#{studio}) +- +(.+)", 'i'))
+    r = m[1] + " - " + m[2]
+  else
+    m = r.match(RegExp("^(#{studio}) (.+)$", 'i'))
+    if m
+      r = m[1] + " - " + m[2]
+  r
 
 to_title = (full_title, studio) ->
-  full_title.replace(/#{studio} - /, '')
+  full_title.replace(RegExp("#{studio}( +- +| +)", 'i'), '')
 
 send_enter = (elem_path, str) ->
   driver.wait(till.elementLocated(By.xpath(elem_path)), 5000)
@@ -151,7 +176,7 @@ move_mouse = (selector) ->
 
 find_image_or = (selector1, selector2) ->
   driver.wait(till.elementLocated(By.css(selector1)), 2000).then ->
-    driver.fineElement(By.css(selector1))
+    driver.findElement(By.css(selector1))
   , ->
     driver.wait(till.elementLocated(By.css(selector2)), 1000).then ->
       driver.findElement(By.css(selector2))
@@ -173,9 +198,11 @@ save_image_adult_film_database = ->
   find_image_or("tbody > tr > td > span > a > img", "body > table > tbody > tr > td > table > tbody > tr > td > table > tbody > tr > td > img").then (elem) ->
     elem.getAttribute('src').then (src) ->
       movie.image_url = src
-      log src
       find_text_xpath("//table/tbody/tr/td/table/tbody/tr/td/table/tbody/tr/td/br/..").then (text) ->
         movie.summary = text
+      find_text_xpath("/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[3]/td[2]").then (text) ->
+        if text.match(/\d\d\d\d/)
+          movie.year = text
 
 close_window = ->
   driver.close()
@@ -189,17 +216,25 @@ send_keys = (selector, str) ->
         elem.clear().then ->
           elem.sendKeys(str)
 
-enter_data = ->
-  click("ul.nav > li > a.edit-btn", 0).then ->
-    send_keys("input#lockable-title", movie.full_title).then ->
-      if movie.year && movie.year.length > 0
-        send_keys("input#lockable-year", movie.year).then ->
-      send_keys("textarea#lockable-summary", movie.summary).then ->
-        click("a.btn-gray.change-pane-btn.poster-btn", 0).then ->
-          click("a.upload-url-btn", 0).then ->
-            send_keys("input[name=url]", movie.image_url).then ->
-              click("a.submit-url-btn", 0).then ->
-                click("button.save-btn.btn.btn-primary.btn-loading", 0)
+click_matching = (str, elements, i) ->
+  elements[i].getText().then (text) ->
+    if text.match(RegExp(str, 'i'))
+      elements[i].click()
+    else
+      click_matching(elements, i + 1)
+
+enter_data = (entry) ->
+  new webdriver.ActionSequence(driver).mouseMove(entry).perform().then ->
+    click_child(entry, "button.edit-btn").then ->
+      send_keys("input#lockable-title", movie.full_title).then ->
+        if movie.year && movie.year.length > 0
+          send_keys("input#lockable-year", movie.year)
+        send_keys("textarea#lockable-summary", movie.summary).then ->
+          click("a.btn-gray.change-pane-btn.poster-btn", 0).then ->
+            click("a.upload-url-btn", 0).then ->
+              send_keys("input[name=url]", movie.image_url).then ->
+                click("a.submit-url-btn", 0).then ->
+                  click("button.save-btn.btn.btn-primary.btn-loading", 0)
 
 try_andrew_blake_com = ->
   click("ol > div.srg > li.g > div.rc > h3.r > a", 0).then ->
@@ -209,34 +244,50 @@ try_andrew_blake_com = ->
           close_window().then ->
             enter_data()
 
-try_adult_film_database_com = ->
+try_adult_film_database_com = (entry) ->
   search movie.full_title + ' site:adultfilmdatabase.com'
-  click("ol > div.srg > li.g > div.rc > h3.r > a", 0).then ->
-    switch_to().then ->
-      save_image_adult_film_database().then ->
-        close_window().then ->
+  find_elements("ol > div.srg > li.g > div.rc > h3.r > a").then (elems) ->
+    click_matching("#{movie.title}", elems, 0).then ->
+      switch_to().then ->
+        save_image_adult_film_database().then ->
           close_window().then ->
             close_window().then ->
-              enter_data()
+              enter_data(entry)
 
 scrape = (i) ->
-  click("li.poster-item > a.media-poster-container", i).then ->
-    find_text("p.item-summary.metadata-summary").then (text) ->
-      if text && text.length > 0
-        driver.navigate().back().then ->
-          driver.sleep(1000).then ->
-            scrape(i + 1)
-      else
-        find_text("h1.item-title").then (text) ->
-          if text.match(/andrew.blake/i)
-            movie.full_title = to_full_title(text)
-            movie.title = to_title(movie.full_title)
-            search movie.full_title + ' site:store.andrewblake.com'
-            find_text("ol > div.srg > li.g > div.rc > h3.r > a").then (text) ->
-              if text.match(movie.title)
-                try_andrew_blake_com()
-              else
-                try_adult_film_database_com()
+  find_elem("a.media-list-inner-item.show-actions", i).then (entry) ->
+    entry.findElement(By.css("p.media-summary")).then (elem) ->
+      elem.getText().then (text) ->
+        if text
+          scrape(i + 1)
+        else
+          find_child_text(entry, "span.media-title").then (text) ->
+            if text.match(/andrew.blake/i)
+              movie.full_title = to_full_title(text, "andrew blake")
+              movie.title = to_title(movie.full_title, "andrew blake")
+              try_adult_film_database_com(entry)
+              # search movie.full_title + ' site:store.andrewblake.com'
+              # find_text("ol > div.srg > li.g > div.rc > h3.r > a").then (text) ->
+              #   if text.match(movie.title)
+              #     try_andrew_blake_com()
+              #   else
+              #     try_adult_film_database_com()
+    # find_text("p.media-summary").then (text) ->
+    #   if text && text.length > 0
+    #     driver.navigate().back().then ->
+    #       driver.sleep(1000).then ->
+    #         scrape(i + 1)
+    #   else
+    #     find_text("h1.item-title").then (text) ->
+    #       if text.match(/andrew.blake/i)
+    #         movie.full_title = to_full_title(text)
+    #         movie.title = to_title(movie.full_title, "andrew blake")
+    #         search movie.full_title + ' site:store.andrewblake.com'
+    #         find_text("ol > div.srg > li.g > div.rc > h3.r > a").then (text) ->
+    #           if text.match(movie.title)
+    #             try_andrew_blake_com()
+    #           else
+    #             try_adult_film_database_com()
 
 ipc.on 'scrape', (event, arg) ->
   options = new chrome.Options()
