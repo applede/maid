@@ -1,17 +1,17 @@
 {
-  "name": "AtoMaid",
+  "name": "Maid",
   "dependencies": {
-    "angular": "~1.3.12",
-    "angular-route": "~1.3.12",
-    "font-awesome": "~4.3.0",
-    "angular-bootstrap": "~0.12.0",
-    "bootstrap": "~3.3.2"
+    "angular": "*",
+    "angular-route": "*",
+    "font-awesome": "*",
+    "angular-bootstrap": "*",
+    "bootstrap": "*"
   },
   "version": "0.1.0",
   "authors": [
     "Jake Song <jksong3@gmail.com>"
   ],
-  "description": "Atom Maid",
+  "description": "Maid",
   "main": "src/main.coffee",
   "license": "MIT",
   "private": true,

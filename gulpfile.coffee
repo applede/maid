@@ -4,8 +4,8 @@ slim = require 'gulp-slim'
 jade = require 'gulp-jade'
 plumber = require 'gulp-plumber'
 shell = require 'gulp-shell'
-atomshell = require('gulp-atom-shell')
-# downloadAtomShell = require('gulp-download-atom-shell')
+atomshell = require 'gulp-atom-shell'
+
 COFFEE = 'src/*.coffee'
 JSON = 'src/package.json'
 SLIM = 'views/*.slim'
@@ -13,7 +13,7 @@ JADE = 'views/*.jade'
 CSS = 'views/*.css'
 HTML = 'views/*.html'
 ICON = 'resource/maid.icns'
-DEST = 'Maid.app/Contents/Resources/app'
+DEST = 'build/Maid.app/Contents/Resources/app'
 DEST_VIEWS = DEST + '/views'
 DEST_ICON = DEST + '/..'
 
@@ -53,25 +53,19 @@ gulp.task 'html', ->
 gulp.task 'atomshell', ->
   gulp.src('')
     .pipe(atomshell({
-      version: '0.21.3',
+      version: '0.22.3',
       productName: 'Maid',
       productVersion: '0.0.2',
       platform: 'darwin',
       darwinIcon: 'resource/maid.icns'
     }))
-    .pipe(gulp.dest('build'))
+    .pipe(atomshell.zfsdest('build.zip'))
+    .pipe(shell(['rm -rf build', 'open build.zip']))
 
 gulp.task 'build', ['coffee', 'jade', 'css', 'json', 'icon'], ->
   gulp.src("")
       .pipe(shell(["bower install"]))
       .pipe(shell(["cd #{DEST};npm install"]))
-  # gulp.src('')
-  #     .pipe(atomshell({
-  #       version: '0.21.1',
-  #       productName: 'Maid',
-  #       productVersion: '0.0.1',
-  #       platform: 'darwin'
-  #     }))
 
 gulp.task 'default', ['build'], ->
   gulp.watch(COFFEE, ['coffee'])

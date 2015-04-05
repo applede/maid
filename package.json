@@ -5,15 +5,15 @@
   "version": "0.1.0",
   "main": "main.js",
   "devDependencies": {
-    "coffee-script": "^1.9.0",
-    "gulp": "^3.8.10",
-    "gulp-atom-shell": "^0.1.2",
-    "gulp-changed": "^1.1.0",
+    "coffee-script": "^1.9.1",
+    "gulp": "^3.8.11",
+    "gulp-atom-shell": "^0.1.10",
+    "gulp-changed": "^1.2.1",
     "gulp-coffee": "^2.2.0",
     "gulp-jade": "^0.11.0",
     "gulp-plumber": "^0.6.6",
     "gulp-shell": "^0.2.11",
     "gulp-slim": "0.0.13",
-    "gulp-watch": "^4.1.0"
+    "gulp-watch": "^4.2.2"
   }
 }
