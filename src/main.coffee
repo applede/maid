@@ -94,7 +94,12 @@ click_child = (elem, selector) ->
     child.click()
 
 find_text = (selector) ->
-  driver.wait(till.elementLocated(By.css(selector)), 5000, "timeout").then ->
+  driver.wait(till.elementLocated(By.css(selector)), 5000, "find_text").then ->
+    elem = driver.findElement(By.css(selector))
+    elem.getText()
+
+get_text = (selector) ->
+  driver.wait(till.elementLocated(By.css(selector)), 5000, "get_text").then ->
     elem = driver.findElement(By.css(selector))
     elem.getText()
 
@@ -107,9 +112,11 @@ find_child_text = (elem, selector) ->
   elem.findElement(By.css(selector)).then (child) ->
     child.getText()
 
-find_elements = (selector) ->
+find_elements = (selector, selector2) ->
   driver.wait(till.elementLocated(By.css(selector)), 3000, "find_elements timeout").then ->
     driver.findElements(By.css(selector))
+  .thenCatch ->
+    driver.findElements(By.css(selector2))
 
 item_per_page = 0
 
@@ -123,34 +130,6 @@ find_elem = (selector, i) ->
         if item_per_page == 0
           item_per_page = i
         find_elem(selector, i % item_per_page)
-
-# movie =
-#   summary: ""
-#   image_url: ""
-#   full_title: ""         # studio - title
-#   studio: ""
-#   title: ""
-#   year: ""
-
-# to_full_title = (text, studio) ->
-#   text = text.replace(/[\._]/g, ' ')
-#   m = text.match(/\b(\d\d\d\d)\b/)
-#   if m
-#     movie.year = m[0]
-#   r = text.replace(/dvdrip|\d\d\d\d/gi, '')
-#           .replace(/\ +$/, '')
-#           .replace(/\ 1$/, '')
-#           .replace(/\ +-$/, '')
-#   if m = r.match(RegExp("^(#{studio}) +- +(.+)", 'i'))
-#     r = m[1] + " - " + m[2]
-#   else
-#     m = r.match(RegExp("^(#{studio}) (.+)$", 'i'))
-#     if m
-#       r = m[1] + " - " + m[2]
-#   r
-
-# to_title = (full_title, studio) ->
-#   full_title.replace(RegExp("#{studio}( +- +| +)", 'i'), '')
 
 parse_movie = (text, studio) ->
   movie =
@@ -207,6 +186,9 @@ match_term1 = (movie) ->
 
 match_term2 = (movie) ->
   remove_extra2(movie.title) + " dvd"
+
+match_term3 = (movie) ->
+  remove_extra(movie.title) + ".+dvd"
 
 send_enter = (elem_path, str) ->
   driver.wait(till.elementLocated(By.xpath(elem_path)), 5000)
@@ -337,20 +319,30 @@ find_candidate = (str, elements) ->
   candi = { length: 99999, elem: null }
   find_candidate_rec(str, elements, candi)
 
+match_variation = (text, str) ->
+  if text.match(RegExp(str, 'i')) && !text.match(RegExp("#{str} [2] ", 'i'))
+    true
+  else
+    str2 = str.replace(/\ and /i, ' & ')
+    if text.match(RegExp(str2, 'i'))
+      true
+    else
+      str3 = str.replace(/\ 2 /i, ' ii ')
+      if text.match(RegExp(str3, 'i'))
+        true
+      else
+        false
+
 find_first = (str, elements) ->
   elem = elements.shift()
   if elem
     elem.getText().then (text) ->
-      if text.match(RegExp(str, 'i')) && !text.match(RegExp("#{str} [2] ", 'i'))
+      if match_variation(text, str)
         elem
       else
-        str2 = str.replace(/\ and /i, ' & ')
-        if text.match(RegExp(str2, 'i'))
-          elem
-        else
-          find_first(str, elements)
+        find_first(str, elements)
   else
-    webdriver.promise.rejected()
+    webdriver.promise.fulfilled(null)
 
 enter_data = (movie, entry) ->
   driver.actions().mouseMove(entry).perform().then ->
@@ -374,26 +366,34 @@ try_andrew_blake_com = ->
             enter_data()
 
 find_and_click = (movie, elems) ->
-  orig_elems = elems.slice(0)
-  find_first(match_term1(movie), elems).then (elem) ->
-    elem
-  , ->
-    find_first(match_term2(movie), orig_elems)
+  find_first(match_term1(movie), elems.slice(0)).then (elem) ->
+    if elem
+      elem
+    else
+      find_first(match_term2(movie), elems.slice(0)).then (elem) ->
+        if elem
+          elem
+        else
+          find_first(match_term3(movie), elems.slice(0))
 
 search_and_click = (movie, site) ->
   search search_term(movie, site)
-  find_elements("ol > div.srg > li.g > div.rc > h3.r > a").then (elems) ->
+  find_elements("ol > div.srg > li.g > div.rc > h3.r > a",
+                "#rso > li > div > h3 > a").then (elems) ->
     find_and_click(movie, elems).then (elem) ->
-      elem.click().then ->
-        switch_to()
-    , ->
-      search search_term_without_year(movie, site)
-      find_elements("ol > div.srg > li.g > div.rc > h3.r > a").then (elems) ->
-        find_and_click(movie, elems).then (elem) ->
-          elem.click().then ->
-            switch_to()
-        , ->
-          webdriver.promise.rejected()
+      if elem
+        elem.click().then ->
+          switch_to()
+      else
+        search search_term_without_year(movie, site)
+        find_elements("ol > div.srg > li.g > div.rc > h3.r > a",
+                      "#rso > li > div > h3 > a").then (elems) ->
+          find_and_click(movie, elems).then (elem) ->
+            if elem
+              elem.click().then ->
+                switch_to()
+            else
+              webdriver.promise.rejected()
 
 scrape_andrew_blake = (movie, entry) ->
   search_and_click(movie, 'adultfilmdatabase.com').then ->
@@ -401,36 +401,24 @@ scrape_andrew_blake = (movie, entry) ->
   , ->
     search_and_click(movie, 'store.andrewblake.com').then ->
       get_info_from_andrew_blake_com(movie)
-  .thenFinally ->
+  .then ->
     close_until().then ->
       enter_data(movie, entry)
 
+scrape_x_art = (movie, entry) ->
+  search_and_click(movie, '')
 
-  # search search_term(movie, 'adultfilmdatabase.com')
-  # find_elements("ol > div.srg > li.g > div.rc > h3.r > a").then (elems) ->
-  #   find_and_click(match_term1(movie), match_term2(movie), elems).then (elem) ->
-  #     if elem
-  #       elem.click().then ->
-  #         switch_to().then ->
-  #           get_info_from_adult_film_database(movie).then ->
-  #             close_window().then ->
-  #               close_window().then ->
-  #                 enter_data(movie, entry)
-  #     else
-  #       search search_term_without_year(movie, 'adultfilmdatabase.com')
-  #       find_elements("ol > div.srg > li.g > div.rc > h3.r > a").then (elems) ->
-  #         find_and_click(match_term1(movie), match_term2(movie), elems).then (elem) ->
-  #           if elem
-  #             elem.click().then ->
-  #               switch_to().then ->
-  #                 get_info_from_adult_film_database(movie).then ->
-  #                   close_window().then ->
-  #                     close_window().then ->
-  #                       close_window().then ->
-  #                         enter_data(movie, entry)
-  #           else
-  #             search search_term(movie, 'store.andrewblake.com')
+scrape_james_dean = (movie, entry) ->
+  search_and_click(movie, '')
 
+scrape_file_name = (entry) ->
+  driver.actions().mouseMove(entry).perform()
+  click_child(entry, "button.more-btn")
+  click("div.media-actions-dropdown > ul.dropdown-menu > li > a.info-btn", 0)
+  driver.sleep(1000)
+  get_text("div.files > ul.media-info-file-list.well > li").then (text) ->
+    log text
+    log 'hello'
 
 scrape_i = 0
 
@@ -449,6 +437,15 @@ scrape = ->
                 # movie.full_title = to_full_title(text, "andrew blake")
                 # movie.title = to_title(movie.full_title, "andrew blake")
                 scrape_andrew_blake(movie, entry)
+                scrape_i += 1
+              else if text.match(/x-art/i)
+                movie = parse_movie(text, "x-art")
+                scrape_x_art(movie, entry)
+              else if text.match(/james dean/i)
+                movie = parse_movie(text, "james dean")
+                scrape_james_dean(movie, entry)
+              else
+                scrape_file_name(entry)
 
 ipc.on 'scrape', (event, arg) ->
   if !driver
