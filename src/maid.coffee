@@ -1,4 +1,4 @@
-maidApp = angular.module('maid', ['ngRoute', 'maidControllers', 'scraper', 'ui.bootstrap']);
+maidApp = angular.module('maid', ['ngRoute', 'maidControllers', 'scraper', 'ui.bootstrap'])
 
 maidApp.config ['$routeProvider',
   ($routeProvider) ->

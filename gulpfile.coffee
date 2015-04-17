@@ -53,9 +53,7 @@ gulp.task 'html', ->
 gulp.task 'atomshell', ->
   gulp.src('')
     .pipe(atomshell({
-      version: '0.22.3',
-      productName: 'Maid',
-      productVersion: '0.0.2',
+      version: '0.23.0',
       platform: 'darwin',
       darwinIcon: 'resource/maid.icns'
     }))

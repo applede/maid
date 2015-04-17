@@ -162,13 +162,13 @@ parse_movie = (text, studio) ->
 
 remove_extra = (str) ->
   str.replace(/\ - extras/i, '')
-     .replace(/\ - extra clips/i, '')
-     .replace(/\ - extra clip/i, '')
-     .replace(/\ - making ntsc/i, '')
-     .replace(/\ - compilation/i, '')
-     .replace(/\ - leg language/i, '')
-     .replace(/\ - side b - \w+/i, '')
-     .replace(/\ - side b/i, '')
+    .replace(/\ - extra clips/i, '')
+    .replace(/\ - extra clip/i, '')
+    .replace(/\ - making ntsc/i, '')
+    .replace(/\ - compilation/i, '')
+    .replace(/\ - leg language/i, '')
+    .replace(/\ - side b - \w+/i, '')
+    .replace(/\ - side b/i, '')
 
 remove_extra2 = (str) ->
   remove_extra(str).replace(/the +/i, '')
@@ -261,7 +261,7 @@ get_info_from_adult_film_database = (movie) ->
       movie.image_url = src
       check_url hi_src, ->
         movie.image_url = hi_src
-        
+
       # find_text_xpath("//table/tbody/tr/td/table/tbody/tr/td/table/tbody/tr/td/br/..").then (text) ->
       find_text_xpath("/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[6]/td").then (text) ->
         movie.summary = text
@@ -455,7 +455,7 @@ ipc.on 'scrape', (event, arg) ->
     driver = new webdriver.Builder()
         .forBrowser('chrome')
         .setChromeOptions(options)
-        .build();
+        .build()
 
     driver.get('http://127.0.0.1:32400/web/index.html')
     save_windows()    # initial window
