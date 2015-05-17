@@ -1,19 +1,24 @@
 {
   "name": "maid",
-  "productName": "Maid",
-  "description": "Maid for media management",
-  "version": "0.1.0",
+  "version": "0.3.0",
+  "description": "Media manager",
   "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jake Song",
+  "license": "ISC",
   "devDependencies": {
-    "coffee-script": "^1.9.1",
-    "gulp": "^3.8.11",
-    "gulp-atom-shell": "^0.1.10",
-    "gulp-changed": "^1.2.1",
-    "gulp-coffee": "^2.2.0",
-    "gulp-jade": "^0.11.0",
-    "gulp-plumber": "^0.6.6",
-    "gulp-shell": "^0.2.11",
-    "gulp-slim": "0.0.13",
-    "gulp-watch": "^4.2.2"
+    "babel-eslint": "latest",
+    "electron-rebuild": "latest",
+    "eslint": "latest",
+    "gulp": "latest",
+    "gulp-atom": "latest",
+    "gulp-atom-shell": "latest",
+    "gulp-babel": "latest",
+    "gulp-electron": "latest",
+    "gulp-plumber": "latest",
+    "gulp-react": "latest",
+    "gulp-shell": "latest"
   }
 }

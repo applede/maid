@@ -1,0 +1,25 @@
+{
+  "parser": "babel-eslint",
+  "rules": {
+    "strict": 0,
+    "quotes": [1, "single"],
+    "camelcase": 0,
+    "no-unused-vars": [1, {"vars": "local", "args": "none"}],
+    "no-underscore-dangle": 0,
+    "handle-callback-err": 0,
+    "react/jsx-uses-vars": 1
+  },
+  "env": {
+    "browser": true,
+    "node": true
+  },
+  "globals": {
+  },
+  "ecmaFeatures": {
+    "blockBindings": true,
+    "jsx": true
+  },
+  "plugins": [
+    "react"
+  ]
+}

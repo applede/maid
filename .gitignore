@@ -2,5 +2,7 @@
 node_modules
 chromedriver
 build
+cache
+release
 Chrome
 *.zip

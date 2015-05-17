@@ -1,18 +1,17 @@
 {
   "name": "Maid",
-  "dependencies": {
-    "angular": "*",
-    "angular-route": "*",
-    "font-awesome": "*",
-    "angular-bootstrap": "*",
-    "bootstrap": "*"
-  },
-  "version": "0.1.0",
+  "version": "0.3.0",
   "authors": [
     "Jake Song <jksong3@gmail.com>"
   ],
-  "description": "Maid",
-  "main": "src/main.coffee",
+  "description": "Media management program",
+  "main": "src/main.js",
+  "moduleType": [
+    "node"
+  ],
+  "keywords": [
+    "media"
+  ],
   "license": "MIT",
   "private": true,
   "ignore": [
@@ -22,7 +21,8 @@
     "test",
     "tests"
   ],
-  "resolutions": {
-    "angular": "~1.3.12"
+  "dependencies": {
+    "bootstrap": "latest",
+    "pouchdb": "latest"
   }
 }

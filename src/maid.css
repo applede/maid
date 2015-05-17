@@ -1,0 +1,12 @@
+.container {
+  padding: 0px 0px;
+}
+
+.right-float {
+  display: inline-block;
+  float: right;
+}
+
+.clickable {
+  cursor: pointer;
+}
