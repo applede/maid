@@ -185,7 +185,7 @@ var EditRule = React.createClass({
     }
   },
   invalid_rule() {
-    return this.pattern_error || this.folder_error;
+    return this.pattern_error != null || this.folder_error;
   },
   message() {
     if (this.pattern_error) {

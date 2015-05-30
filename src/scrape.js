@@ -489,7 +489,7 @@ function scrape_i(i) {
 
 ipc.on('scrape', (event, arg) => {
   var options = new chrome.Options()
-      .addArguments('user-data-dir=/Users/apple/hobby/atomaid/Chrome');
+      .addArguments('user-data-dir=./Chrome');
 
   driver = new webdriver.Builder()
           .forBrowser('chrome')

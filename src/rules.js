@@ -22,7 +22,7 @@ var Rules = React.createClass({
   render() {
     var rules = this.state.rules.map((rule) => {
       return (
-        <tr>
+        <tr key={rule._id}>
           <td>{rule.order}</td>
           <td>{rule.pattern}</td>
           <td>{rule.ext}</td>

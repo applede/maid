@@ -1,9 +1,11 @@
 import React from 'react';
 import ipc from 'ipc';
+import {spawn_sync} from './util';
 
 var Scrape = React.createClass({
   scrape() {
-    ipc.send('scrape');
+    spawn_sync('ruby', ['scrape.rb']);
+    // ipc.send('scrape');
     // var options = new chrome.Options()
     //     .addArguments('user-data-dir=/Users/apple/hobby/atomaid/Chrome');
     //
