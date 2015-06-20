@@ -14,6 +14,11 @@ var Rules = React.createClass({
       this.setState({ rules: rules });
     });
   },
+  move_up_rule(rule) {
+    rule_db.move_up(rule, (err) => {
+      this.refresh();
+    });
+  },
   delete_rule(rule) {
     rule_db.delete(rule, (err) => {
       this.refresh();
@@ -35,9 +40,12 @@ var Rules = React.createClass({
               refresh={this.refresh}/>}>
               <span className='glyphicon glyphicon-edit clickable'></span>
             </ModalTrigger>
-                &nbsp;
+            &nbsp;
+            <span className='glyphicon glyphicon-arrow-up clickable'
+                  onClick={ () => { this.move_up_rule(rule); }}></span>
+            &nbsp;
             <span className='glyphicon glyphicon-trash clickable'
-                  onClick={ () => { this.delete_rule(rule); } }></span>
+                  onClick={ () => { this.delete_rule(rule); }}></span>
           </td>
         </tr>
       );

@@ -4,7 +4,7 @@ var atomshell = require('gulp-atom-shell');
 var shell = require('gulp-shell');
 var plumber = require('gulp-plumber');
 
-var ELECTRON_VERSION = '0.26.1';
+var ELECTRON_VERSION = '0.27.1';
 var COPY_FILES = ['src/*.html', 'src/package.json', 'src/*.css'];
 var JS_FILES = 'src/*.js';
 var DEST = `build/Maid.app/Contents/Resources/app`;

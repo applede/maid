@@ -1,5 +1,5 @@
 import React from 'react';
-import TransferredFile from './transferred_file';
+import TransferredFiles from './transferred_file';
 import ExecResult from './exec_result';
 import rule_db from './rule_db';
 import {dest_folder, renamed} from './edit_rule';
@@ -231,7 +231,6 @@ var Transfers = React.createClass({
       }
     } else {
       remove_transfers(this.state.transfers);
-      this.execute_done = true;
     }
   },
 
@@ -239,7 +238,6 @@ var Transfers = React.createClass({
   execute() {
     this.results = [];
     this.ith = 0;
-    this.execute_done = false;
     this.process_ith();
   },
 
@@ -251,13 +249,13 @@ var Transfers = React.createClass({
   },
 
   render() {
-    var refresh = this.refresh;
-    var transfers = this.state.transfers.map(function(transfer) {
-      var files = transfer.files.map(function(file) {
-        return (
-          <TransferredFile key={file.name} file={file} refresh={refresh}></TransferredFile>
-        );
-      });
+    // var refresh = this.refresh;
+    var transfers = this.state.transfers.map((transfer) => {
+      // var files = transfer.files.map(function(file) {
+      //   return (
+      //     <TransferredFile key={file.name} file={file} refresh={refresh}></TransferredFile>
+      //   );
+      // });
       return (
         <Table key={transfer.tid} bordered>
           <thead>
@@ -265,11 +263,11 @@ var Transfers = React.createClass({
               <th colSpan='3'>{transfer.name}</th>
             </tr>
           </thead>
-          <tbody>
-            {files}
-          </tbody>
+          <TransferredFiles files={transfer.files} refresh={this.refresh}></TransferredFiles>
         </Table>
       );
+      // <tbody>
+      // </tbody>
     });
     var execute_button = '';
     if (this.state.transfers.length > 0) {
@@ -284,11 +282,10 @@ var Transfers = React.createClass({
       );
     });
     var progress_result = '';
+    var refresh_button = '';
     if (this.state.progress_result) {
       progress_result = <ExecResult key={key++} result={this.state.progress_result}></ExecResult>;
-    }
-    var refresh_button = '';
-    if (this.execute_done || this.state.transfers.length === 0) {
+    } else {
       refresh_button = <Button onClick={this.refresh}>Refresh</Button>;
     }
     return (

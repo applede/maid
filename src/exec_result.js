@@ -23,10 +23,11 @@ var ExecResult = React.createClass({
       );
     }
     if (result.type === 'unrar') {
+      var key = 1;
       var output = this.props.result.output.map((o) => {
-        return <p>{o}</p>;
+        return <p key={key++}>{o}</p>;
       });
-      let progress = '';
+      let unrar_progress = '';
       if (this.props.result.progress < 100) {
         progress = <ProgressBar min={0} now={this.props.result.progress} max={100}
                       label='%(percent)s%'/>;
@@ -35,7 +36,7 @@ var ExecResult = React.createClass({
         <Alert bsStyle='success'>
           Unrar {result.src}
           {output}
-          {progress}
+          {unrar_progress}
         </Alert>
       );
     }

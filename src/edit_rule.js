@@ -75,6 +75,8 @@ function renamed_str(rule, folder, file, rename, no_ext) {
             end += r.len;
           } else if (modifier === ':0') {
             sub = ('00' + sub).slice(-2);
+          } else if (modifier === ':S') {
+            sub = sub.replace(/\bE\d\d\b/, 'S01$&');
           } else {
             break;
           }

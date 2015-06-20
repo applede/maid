@@ -54,6 +54,27 @@ class Rules {
     this.save(new_rule, callback);
   }
 
+  higher_rule(rule) {
+    for (var i = 0; i < this.rules.length; i++) {
+      if (this.rules[i] === rule) {
+        return this.rules[i - 1];
+      }
+    }
+    return null;
+  }
+
+  move_up(rule, callback) {
+    let higher_rule = this.higher_rule(rule);
+    let higher_order = higher_rule.order;
+    higher_rule.order = rule.order;
+    rule.order = higher_order;
+    this.save(higher_rule, () => {
+      this.save(rule, () => {
+        this.load(callback);
+      });
+    });
+  }
+
   delete(rule, callback) {
     this.db.remove(rule, callback);
   }

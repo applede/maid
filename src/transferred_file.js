@@ -14,24 +14,13 @@ function result_class(file) {
 }
 
 // represents a file in a transfer
-export var TransferredFile = React.createClass({
-  render_copy_dest() {
-    if (this.props.file.rule.action === 'copy') {
-      return (
-        <tr className='success'>
-          <td colSpan={3}>
-            ⇨&nbsp;{this.props.file.dest}
-          </td>
-        </tr>
-      );
-    }
-    return null;
-  },
+export var TransferredFiles = React.createClass({
   render() {
-    var file = this.props.file;
-    return (
-      <tr>
-        <tr className={result_class(file)}>
+    var key = 1;
+    var files = [];
+    this.props.files.forEach(file => {
+      files.push(
+        <tr key={key++} className={result_class(file)}>
           <td>{file.name}</td>
           <td>{file.rule.action}</td>
           <td>
@@ -42,10 +31,23 @@ export var TransferredFile = React.createClass({
             </ModalTrigger>
           </td>
         </tr>
-        {this.render_copy_dest()}
-      </tr>
+      );
+      if (file.rule.action === 'copy') {
+        files.push(
+          <tr key={key++} className='success'>
+            <td colSpan={3}>
+              ⇨&nbsp;{file.dest}
+            </td>
+          </tr>
+        );
+      }
+    });
+    return (
+      <tbody>
+        {files}
+      </tbody>
     );
   }
 });
 
-export default TransferredFile;
+export default TransferredFiles;
