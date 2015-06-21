@@ -2,10 +2,39 @@ require "selenium-webdriver"
 require "open-uri"
 
 class Movie
-  attr_accessor :image_url, :studio, :year, :director, :summary, :full_title
+  attr_accessor :image_url, :studio, :year, :director, :summary, :full_title, :title, :actors,
+                :runtime, :genre, :mpaa
 end
 
 class Scraper
+  def nfo_file(path)
+    return path.sub(/\.[^.]+$/, '.nfo')
+  end
+
+  def need_nfo(path)
+    if /\.(mkv|mov|mp4|avi|wmv)$/ =~ path
+      nfo = nfo_file(path)
+      if File.exist?(nfo)
+        nfo_time = File.new(nfo).mtime
+        file_time = File.new(path).mtime
+        return nfo_time < file_time
+      else
+        return true
+      end
+    else
+      return false
+    end
+  end
+
+  def url_exist?(url)
+    begin
+      open(url)
+      return true
+    rescue
+      return false
+    end
+  end
+
   def find_entry(i)
     entries = @browser.find_elements(css: "a.media-list-inner-item.show-actions")
     if i >= entries.count
@@ -24,13 +53,28 @@ class Scraper
     end
   end
 
-  def find_element(selector)
-    wait(selector)
-    if selector.start_with?('/')
-      return @browser.find_element(xpath: selector)
-    else
-      return @browser.find_element(css: selector)
+  def try_find(selector)
+    3.times do
+      begin
+        if selector.start_with?('/')
+          return @browser.find_element(xpath: selector)
+        else
+          return @browser.find_element(css: selector)
+        end
+      rescue
+      end
+      sleep(1)
     end
+    return nil
+  end
+
+  def find_element(*selectors)
+    selector1, selector2 = *selectors
+    elem = try_find(selector1)
+    return elem if elem
+    elem = try_find(selector2)
+    return elem if elem
+    return nil
   end
 
   def find_elements(*selectors)
@@ -40,7 +84,7 @@ class Scraper
     else
       elements = @browser.find_elements(css: selector1)
     end
-    if elements.length == 0
+    if elements.length == 0 && selector2
       if selector2.start_with?('/')
         elements = @browser.find_elements(xpath: selector2)
       else
@@ -139,6 +183,9 @@ class Scraper
     else
       term = file
     end
+    if file =~ /andrew_blake/i
+      return folder
+    end
     return term
       .sub(/ - cd\d/i, '')
       .sub(/chi-/, '')
@@ -146,6 +193,34 @@ class Scraper
       .sub(/\./, ' ')
       .sub(/x-art - [^-]+ - (.+)/i, '\1')
       .sub(/joymii - [^-]+ - (.+)/i, '\1')
+      .gsub(/_/, ' ')
+  end
+
+  def does_match(text, path)
+    %r{([^/]+)\/([^/]+)\.[^.]+$} =~ path
+    file = $2
+    folder = $1
+    name = file.gsub(/_/, ' ')
+               .sub(/^andrew blake \d\d\d\d - /i, '')
+               .sub(/ and /i, ' & ')
+               .sub(/^the /i, '')
+    name = name.split(' - ')[0]
+    return text.downcase.include?(name.downcase)
+  end
+
+  def extra_name(path)
+    %r{([^/]+)\/([^/]+)\.[^.]+$} =~ path
+    file = $2
+    folder = $1
+    name = file.gsub(/_/, ' ')
+               .sub(/^andrew blake \d\d\d\d - /i, '')
+               .sub(/ - ntsc$/i, '')
+               .sub(/ ntsc$/i, '')
+    parts = name.split(' - ')
+    if parts.length > 1
+      return ' - ' + parts[1..-1].join(' - ')
+    end
+    return ''
   end
 
   def title_from(path)
@@ -157,32 +232,8 @@ class Scraper
       .sub('X-art', 'X-Art')
   end
 
-  def try_find(css)
-    3.times do
-      begin
-        elem = @browser.find_element(css: css)
-      rescue
-        elem = nil
-      end
-      if elem
-        return elem
-      end
-      sleep(1)
-    end
-    return nil
-  end
-
-  def find_image(*css)
-    css1, css2 = *css
-    elem = try_find(css1)
-    return elem if elem
-    elem = try_find(css2)
-    return elem if elem
-    return nil
-  end
-
   def download_image(css)
-    image = find_image(css)
+    image = find_element(css)
     @browser.action.move_to(image).context_click().perform
     send_os_keys('s', :enter)
     system('rm', "-f", "#{Dir.home}/Downloads/temp.jpg")
@@ -197,100 +248,178 @@ class Scraper
     download_image('img')
   end
 
-  def scrape_general(entry, filename, kind, site)
-    s_term = search_term(filename)
-
-    search("#{s_term} site:#{site}")
+  def scrape_general(path, kind, site)
     candi = []
     prio = 50
 
-    find_elements('#rso li > div > h3 > a').each do |elem|
-      if elem.text =~ /\d/ && s_term =~ /\d$/
-        candi.push([elem, 200 + prio])
-      end
-      if elem.text !~ /\d/ && s_term !~ /\d$/
-        candi.push([elem, 100 + prio])
-      end
-      if elem.text =~ /gallery/i
-        candi.push([elem, 300 + prio])
-      end
-      if elem.text =~ / - video .../i
-        if elem.text.downcase.include?(s_term.downcase)
-          candi.push([elem, 400 + prio])
+    if kind == 'andrew blake'
+      open_tab()
+      @browser.get('http://www.adultfilmdatabase.com/director.cfm?directorid=165')
+      new_tab = false
+
+      find_elements('/html/body/table[3]/tbody/tr/td[1]/table/tbody/tr[5]/td/table/tbody/tr[1]/td/table/tbody/tr/td[1]/span/a').each do |elem|
+        if does_match(elem.text, path)
+          candi.push([elem, 100 + 99 - elem.text.length])
         end
       end
-      prio -= 1
+      if candi.empty?
+        close_tab()
+        return false
+      end
+    else
+      s_term = search_term(path)
+
+      search("#{s_term} site:#{site}")
+      new_tab = true
+
+      find_elements('#rso li > div > h3 > a').each do |elem|
+        if elem.text =~ /\d/ && s_term =~ /\d$/
+          candi.push([elem, 200 + prio])
+        end
+        if elem.text !~ /\d/ && s_term !~ /\d$/
+          candi.push([elem, 100 + prio])
+        end
+        if elem.text =~ /gallery/i
+          candi.push([elem, 300 + prio])
+        end
+        if elem.text =~ / - video .../i
+          if elem.text.downcase.include?(s_term.downcase)
+            candi.push([elem, 400 + prio])
+          end
+        end
+        if elem.text =~ / dvd - vod - /i
+          if elem.text.downcase.include?(s_term.downcase)
+            candi.push([elem, 500 + prio])
+          end
+        end
+
+        prio -= 1
+      end
     end
+
     candi.sort! { |a, b| b[1] <=> a[1] }
     candi[0][0].click
 
-    switch_to_new()
+    if new_tab
+      switch_to_new()
+    end
 
     movie = Movie.new
     yield movie
 
-    close_tab() # adultfilmdatabase tab
+    if new_tab
+      close_tab() # adultfilmdatabase tab
+    end
     close_tab() # google search tab
 
-    @browser.action.move_to(entry).perform
-    click_child(entry, 'button.edit-btn')
-    sleep(1) # wait dialog open
-
-    send_keys('/html/body/div[4]/div/div/div[2]/div[2]/div/form/div[1]/div/div/div/div/div[1]/input', movie.full_title);
-    if movie.year
-      send_keys('input#lockable-year', movie.year)
+    actors = ''
+    movie.actors.each do |actor|
+      actors += <<-END_ACTOR
+  <actor>
+    <name>#{actor}</name>
+  </actor>
+END_ACTOR
     end
-    if movie.studio
-      send_keys('/html/body/div[4]/div/div/div[2]/div[2]/div/form/div[5]/div[1]/div/div/div/div[1]/input', movie.studio)
+    nfo = path.sub(/\.[^.]+$/, '.nfo')
+    open(nfo, 'w') do |file|
+      file.puts <<-END_NFO
+<movie>
+  <title>#{movie.title}</title>
+  <year>#{movie.year}</year>
+  <plot>#{movie.summary}</plot>
+  <runtime>#{movie.runtime}</runtime>
+  <director>#{movie.director}</director>
+  <genre>#{movie.genre}</genre>
+  <studio>#{movie.studio}</studio>
+  <mpaa>#{movie.mpaa}</mpaa>
+#{actors}
+</movie>
+END_NFO
     end
-    send_keys('//*[@id="lockable-summary"]', movie.summary)
-    if movie.director
-      click('a.change-pane-btn.tags-btn')
-      send_keys('/html/body/div[4]/div/div/div[2]/div[2]/div/form/div[1]/div[1]/div/div/div/div[1]/input', movie.director)
+    image = path.sub(/\.[^.]+$/, '-poster.jpg')
+    open(image, 'wb') do |local_file|
+      open(movie.image_url, 'rb') do |remote_file|
+        local_file.write(remote_file.read)
+      end
     end
-    if movie.image_url
-      click('a.change-pane-btn.poster-btn')
-      click('a.upload-url-btn')
-      send_keys('//*[@id="upload-form"]/input', movie.image_url)
-      sleep(2) # wait uploading
-    end
-    click('button.save-btn.btn-loading')
+    return true
   end
 
-  def scrape_andrew_blake(entry, filename)
-    scrape_general(entry, filename, 'andrew blake', 'adultfilmdatabase.com') do |movie|
-      image = find_image('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(1) > td > img',
-                         'body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > img')
+  def scrape_andrew_blake(path)
+    done = scrape_general(path, 'andrew blake', 'adultfilmdatabase.com') do |movie|
+      extra = extra_name(path)
+      if extra != ''
+        image = find_element('/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[1]/table/tbody/tr[2]/td/a/img',
+                             '/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[1]/table/tbody/tr[1]/td/img')
+      else
+        image = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(1) > td > img',
+                             'body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > img')
+      end
       movie.image_url = image.attribute('src')
       hi_src = movie.image_url.sub('200', '350')
-      open(hi_src) { |f|
+      if url_exist?(hi_src)
         movie.image_url = hi_src
-      }
+      end
 
-      movie.studio = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(2) > td:nth-child(2) > u > a').text
-      movie.year = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(3) > td:nth-child(2)').text
-      movie.director = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(4) > td:nth-child(2) > a').text
-      movie.summary = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(6) > td').text
-      movie.full_title = 'Andrew Blake - ' + s_term
+      movie.studio = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(2) > td:nth-child(2) > u > a',
+                                  '/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[2]/td[2]/u/a').text
+      movie.year = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(3) > td:nth-child(2)',
+                                '/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[3]/td[2]').text
+      movie.director = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(4) > td:nth-child(2) > a',
+                                    '/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[4]/td[2]/a').text
+      movie.summary = find_element('body > table:nth-child(7) > tbody > tr > td > table:nth-child(1) > tbody > tr > td:nth-child(2) > table:nth-child(9) > tbody > tr:nth-child(6) > td',
+                                   '/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[6]/td').text
+      movie.title = find_element('/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/span').text + extra
+      movie.actors = find_elements('/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[1]/tbody/tr/td/div/span/a/u').map { |elem| elem.text }
+      movie.runtime = find_element('/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[1]/td[2]').text
+      movie.genre = find_element('/html/body/table[3]/tbody/tr/td/table[1]/tbody/tr/td[2]/table[2]/tbody/tr[5]/td[2]').text
+      movie.mpaa = 'X'
+    end
+    unless done
+      scrape_general(path, 'ab', 'store.andrewblake.com') do |movie|
+        image = find_element('#product_thumbnail')
+        movie.image_url = image.attribute('src')
+        if /\b\d\d\d\d\b/ =~ path
+          movie.year = $&
+        end
+        movie.studio = ''
+        movie.title = find_element('//*[@id="center-main"]/h1').text.sub(/ DVD$/, '') + extra_name(path)
+        movie.genre = ''
+        movie.mpaa = 'X'
+        find_elements('//*[@id="center-main"]/div[2]/div/div/div[2]/form/table[1]/tbody/tr/td/p').each do |elem|
+          if !movie.summary
+            movie.summary = elem.text
+          end
+          if elem.text.start_with?('Starring: ')
+            movie.actors = elem.text[10..-1].split(', ')
+          end
+          if elem.text.start_with?('Directed')
+            movie.director = elem.text.split(' by ')[-1]
+          end
+          if /(\d+) minute feature film/i =~ elem.text
+            movie.runtime = $1
+          end
+        end
+      end
     end
   end
 
 
-  def scrape_james_deen(entry, filename)
-    scrape_general(entry, filename, 'james deen', 'jamesdeenproductions.com') do |movie|
-      image = find_image('img.attachment-product-image.wp-post-image')
+  def scrape_james_deen(path)
+    scrape_general(path, 'james deen', 'jamesdeenproductions.com') do |movie|
+      image = find_element('img.attachment-product-image.wp-post-image')
 
       movie.image_url = image.attribute('src')
       movie.studio = 'James Deen Productions'
       movie.year = nil
       movie.director = nil
       movie.summary = find_element('/html/body/div[1]/div/main/section/div/div/div[1]/p[2]').text
-      movie.full_title = 'James Deen - ' + title_from(filename)
+      movie.full_title = 'James Deen - ' + title_from(path)
     end
   end
 
-  def scrape_x_art(entry, filename)
-    scrape_general(entry, filename, 'x-art', 'x-art.com/galleries') do |movie|
+  def scrape_x_art(path)
+    scrape_general(path, 'x-art', 'x-art.com/galleries') do |movie|
       sleep(5)
       download_image('img.gallery-cover')
 
@@ -303,14 +432,14 @@ class Scraper
       if movie.summary == ''
         movie.summary = find_element('//*[@id="content"]/div[1]/div[2]/div/p[2]').text
       end
-      movie.full_title = normalize(filename)
+      movie.full_title = normalize(path)
     end
   end
 
-  def scrape_joy_mii(entry, filename)
-    scrape_general(entry, filename, 'joymii', 'joymii.com/site/set-video') do |movie|
+  def scrape_joy_mii(path)
+    scrape_general(path, 'joymii', 'joymii.com/site/set-video') do |movie|
       sleep(1)
-      image = find_image('div.video-container > div.video-js', '#video-placeholder > img.poster')
+      image = find_element('div.video-container > div.video-js', '#video-placeholder > img.poster')
       url = image.attribute('poster')
       if !url
         url = image.attribute('src')
@@ -326,45 +455,41 @@ class Scraper
     end
   end
 
-  def scrape_entry(entry)
-    title = entry.find_element(css: "span.media-title").text
-    filename = find_filename(entry)
-    if filename =~ /andrew blake/i
-      scrape_andrew_blake(entry, filename)
-    elsif filename =~ /james deen/i
-      scrape_james_deen(entry, filename)
-    elsif filename =~ /x-art/i
-      scrape_x_art(entry, filename)
-    elsif filename =~ /joymii/i
-      scrape_joy_mii(entry, filename)
+  def scrape_file(path)
+    if path =~ /andrew blake|andrew_blake/i
+      scrape_andrew_blake(path)
+    elsif path =~ /james deen/i
+      scrape_james_deen(path)
+    elsif path =~ /x-art/i
+      scrape_x_art(path)
+    elsif path =~ /joymii/i
+      scrape_joy_mii(path)
+    end
+  end
+
+  def traverse(folder, &block)
+    Dir.entries(folder).each do |file|
+      unless file.start_with?('.')
+        path = File.join(folder, file)
+        if File.directory?(path)
+          traverse(path, &block)
+        else
+          if need_nfo(path)
+            block.call(path)
+          end
+        end
+      end
     end
   end
 
   def scrape
     @browser = Selenium::WebDriver.for :chrome, :switches => %w[--user-data-dir=./Chrome]
-    @browser.get "http://127.0.0.1:32400/web/index.html"
     @wait = Selenium::WebDriver::Wait.new(:timeout => 5)
-    wait("span.section-title")
     @windows = @browser.window_handles()
-    @browser.find_elements(css: "span.section-title").each do |elem|
-      if elem.text == 'porn'
-        elem.click
-        break
-      end
-    end
-    wait("a.media-list-inner-item.show-actions")
 
-    i = 0
-    while true
-      entry = find_entry(i)
-      sleep(0.15)
-      summary = entry.find_element(css: "p.media-summary")
-      if summary.text == ''
-        scrape_entry(entry)
-        sleep(3)
-      else
-        i += 1
-      end
+    traverse('/Users/apple/mount/public/porn') do |path|
+      puts path
+      scrape_file(path)
     end
   end
 end
